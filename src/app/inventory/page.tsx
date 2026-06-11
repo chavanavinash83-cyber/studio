@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MOCK_ASSETS } from "../lib/mock-data";
 import { Asset, AssetCategory, AssetStatus, BranchLocation } from "../lib/types";
 import { 
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info } from "lucide-react";
+import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info, CheckCircle } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -34,14 +34,19 @@ import {
 import { Label } from "@/components/ui/label";
 import { addMonths, format, parseISO, isValid } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 export default function InventoryPage() {
+  const { toast } = useToast();
   const [assets, setAssets] = useState<Asset[]>(MOCK_ASSETS);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+
   const [currentAsset, setCurrentAsset] = useState<Partial<Asset>>({
     name: "",
     model: "",
@@ -58,18 +63,20 @@ export default function InventoryPage() {
     warrantyPeriodMonths: 12,
     warrantyExpiry: "",
     vendorName: "",
+    assetPhotoUrl: "",
+    invoiceUrl: "",
   });
 
-  // Automatically calculate warranty expiry whenever purchase date or period changes
+  // Automatically calculate warranty expiry whenever installation date or period changes
   useEffect(() => {
-    if (currentAsset.purchaseDate && currentAsset.warrantyPeriodMonths !== undefined) {
-      const pDate = parseISO(currentAsset.purchaseDate);
-      if (isValid(pDate)) {
-        const expiryDate = addMonths(pDate, currentAsset.warrantyPeriodMonths);
+    if (currentAsset.installationDate && currentAsset.warrantyPeriodMonths !== undefined) {
+      const iDate = parseISO(currentAsset.installationDate);
+      if (isValid(iDate)) {
+        const expiryDate = addMonths(iDate, currentAsset.warrantyPeriodMonths);
         setCurrentAsset(prev => ({ ...prev, warrantyExpiry: format(expiryDate, 'yyyy-MM-dd') }));
       }
     }
-  }, [currentAsset.purchaseDate, currentAsset.warrantyPeriodMonths]);
+  }, [currentAsset.installationDate, currentAsset.warrantyPeriodMonths]);
 
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = 
@@ -98,6 +105,8 @@ export default function InventoryPage() {
       warrantyPeriodMonths: 12,
       warrantyExpiry: "",
       vendorName: "",
+      assetPhotoUrl: "",
+      invoiceUrl: "",
     });
     setIsDialogOpen(true);
   };
@@ -110,6 +119,28 @@ export default function InventoryPage() {
 
   const handleDelete = (id: string) => {
     setAssets(assets.filter(a => a.id !== id));
+    toast({
+      title: "Asset Deleted",
+      description: "The asset record has been removed from the system.",
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'invoice') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        if (type === 'photo') {
+          setCurrentAsset(prev => ({ ...prev, assetPhotoUrl: base64String }));
+          toast({ title: "Photo Uploaded", description: file.name });
+        } else {
+          setCurrentAsset(prev => ({ ...prev, invoiceUrl: base64String }));
+          toast({ title: "Invoice Uploaded", description: file.name });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -118,12 +149,14 @@ export default function InventoryPage() {
 
     if (isEditing) {
       setAssets(assets.map(a => a.id === currentAsset.id ? (currentAsset as Asset) : a));
+      toast({ title: "Asset Updated", description: `${currentAsset.name} has been updated.` });
     } else {
       const newAsset: Asset = {
         ...(currentAsset as Asset),
         id: `ASSET-${Math.floor(100 + Math.random() * 900)}`,
       };
       setAssets([...assets, newAsset]);
+      toast({ title: "Asset Registered", description: `${currentAsset.name} added to inventory.` });
     }
     setIsDialogOpen(false);
   };
@@ -324,7 +357,7 @@ export default function InventoryPage() {
                           <TooltipTrigger asChild>
                             <Info className="h-3 w-3 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                           </TooltipTrigger>
-                          <TooltipContent>Calculated from Purchase Date</TooltipContent>
+                          <TooltipContent>Calculated from Installation Date</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -340,18 +373,56 @@ export default function InventoryPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label>Asset Photo</Label>
-                    <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-pointer">
-                      <ImageIcon className="h-8 w-8 mb-2" />
-                      <span className="text-xs">Click to upload photo</span>
-                      <Input type="file" className="hidden" accept="image/*" />
+                    <div 
+                      onClick={() => photoInputRef.current?.click()}
+                      className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-pointer group h-[120px]"
+                    >
+                      {currentAsset.assetPhotoUrl ? (
+                        <div className="flex flex-col items-center">
+                          <CheckCircle className="h-8 w-8 text-green-500 mb-1" />
+                          <span className="text-xs font-bold text-green-600">Photo Uploaded</span>
+                          <span className="text-[10px] mt-1 text-muted-foreground">Click to replace</span>
+                        </div>
+                      ) : (
+                        <>
+                          <ImageIcon className="h-8 w-8 mb-2 group-hover:text-primary transition-colors" />
+                          <span className="text-xs">Click to upload photo</span>
+                        </>
+                      )}
+                      <Input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        ref={photoInputRef}
+                        onChange={(e) => handleFileChange(e, 'photo')}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Invoice Document</Label>
-                    <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-pointer">
-                      <FileText className="h-8 w-8 mb-2" />
-                      <span className="text-xs">Click to upload PDF/Image</span>
-                      <Input type="file" className="hidden" accept=".pdf,image/*" />
+                    <div 
+                      onClick={() => invoiceInputRef.current?.click()}
+                      className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-pointer group h-[120px]"
+                    >
+                      {currentAsset.invoiceUrl ? (
+                        <div className="flex flex-col items-center">
+                          <CheckCircle className="h-8 w-8 text-green-500 mb-1" />
+                          <span className="text-xs font-bold text-green-600">Document Uploaded</span>
+                          <span className="text-[10px] mt-1 text-muted-foreground">Click to replace</span>
+                        </div>
+                      ) : (
+                        <>
+                          <FileText className="h-8 w-8 mb-2 group-hover:text-primary transition-colors" />
+                          <span className="text-xs">Click to upload PDF/Image</span>
+                        </>
+                      )}
+                      <Input 
+                        type="file" 
+                        className="hidden" 
+                        accept=".pdf,image/*" 
+                        ref={invoiceInputRef}
+                        onChange={(e) => handleFileChange(e, 'invoice')}
+                      />
                     </div>
                   </div>
                 </div>
