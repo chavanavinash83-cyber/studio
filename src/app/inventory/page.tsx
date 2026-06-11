@@ -161,7 +161,7 @@ export default function InventoryPage() {
         errorEmitter.emit('permission-error', permissionError);
       });
     
-    toast({ title: "Success", description: "Asset deleted successfully." });
+    toast({ title: "Success", description: "Saved successfully." });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'invoice') => {
@@ -213,7 +213,6 @@ export default function InventoryPage() {
         });
     }
 
-    // Non-blocking optimistic UI feedback
     toast({ title: "Success", description: "Saved successfully." });
     setIsDialogOpen(false);
     setIsSubmitting(false);
