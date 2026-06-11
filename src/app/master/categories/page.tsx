@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tags, Plus, Trash2, Edit2 } from "lucide-react";
+import { Tags, Plus, Trash2, Edit2, Calculator } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
@@ -18,28 +18,45 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
-const INITIAL_CATEGORIES = [
-  { id: "1", name: "Buildings", rate: "5%", life: "20 Years" },
-  { id: "2", name: "Vehicles", rate: "15%", life: "8 Years" },
-  { id: "3", name: "Electronics Machinery", rate: "15%", life: "10 Years" },
-  { id: "4", name: "IT Equipment", rate: "33.33%", life: "3 Years" },
-  { id: "5", name: "Furniture", rate: "10%", life: "10 Years" },
+type DepreciationMethod = "WDV" | "Straight Line" | "Purchase Amount";
+
+interface Category {
+  id: string;
+  name: string;
+  rate: string;
+  life: string;
+  method: DepreciationMethod;
+}
+
+const INITIAL_CATEGORIES: Category[] = [
+  { id: "1", name: "Buildings", rate: "5%", life: "20 Years", method: "WDV" },
+  { id: "2", name: "Vehicles", rate: "15%", life: "8 Years", method: "WDV" },
+  { id: "3", name: "Electronics Machinery", rate: "15%", life: "10 Years", method: "WDV" },
+  { id: "4", name: "IT Equipment", rate: "33.33%", life: "3 Years", method: "Straight Line" },
+  { id: "5", name: "Furniture", rate: "10%", life: "10 Years", method: "WDV" },
 ];
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [isOpen, setIsOpen] = useState(false);
-  const [formState, setFormState] = useState({ id: "", name: "", rate: "", life: "" });
+  const [formState, setFormState] = useState<Category>({ id: "", name: "", rate: "", life: "", method: "WDV" });
   const [isEditing, setIsEditing] = useState(false);
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setFormState({ id: "", name: "", rate: "", life: "" });
+    setFormState({ id: "", name: "", rate: "", life: "", method: "WDV" });
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (category: typeof INITIAL_CATEGORIES[0]) => {
+  const handleOpenEdit = (category: Category) => {
     setIsEditing(true);
     setFormState(category);
     setIsOpen(true);
@@ -81,11 +98,11 @@ export default function CategoriesPage() {
           <Button onClick={handleOpenAdd} className="bg-primary">
             <Plus className="h-4 w-4 mr-2" /> Add Category
           </Button>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit Asset Category" : "Add Asset Category"}</DialogTitle>
               <DialogDescription>
-                {isEditing ? "Update the details for this asset class." : "Define a new asset class with its corresponding depreciation rate and useful life."}
+                {isEditing ? "Update the details for this asset class." : "Define a new asset class with its corresponding depreciation parameters."}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveCategory}>
@@ -100,6 +117,24 @@ export default function CategoriesPage() {
                     required
                   />
                 </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="method">Depreciation Method</Label>
+                  <Select 
+                    value={formState.method} 
+                    onValueChange={(val: DepreciationMethod) => setFormState({ ...formState, method: val })}
+                  >
+                    <SelectTrigger id="method">
+                      <SelectValue placeholder="Select Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="WDV">Written Down Value (WDV)</SelectItem>
+                      <SelectItem value="Straight Line">Straight Line Method</SelectItem>
+                      <SelectItem value="Purchase Amount">Purchase Amount (Flat)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="rate">Depreciation Rate (%)</Label>
@@ -134,21 +169,28 @@ export default function CategoriesPage() {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Category Name</TableHead>
-                <TableHead>Depreciation Rate (WDV)</TableHead>
-                <TableHead>Expected Life</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="font-bold">Category Name</TableHead>
+                <TableHead className="font-bold">Method</TableHead>
+                <TableHead className="font-bold">Rate</TableHead>
+                <TableHead className="font-bold">Expected Life</TableHead>
+                <TableHead className="text-right font-bold">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.length > 0 ? (
                 categories.map((cat) => (
-                  <TableRow key={cat.id}>
+                  <TableRow key={cat.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-bold">{cat.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-primary border-primary/20">{cat.rate}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Calculator className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm font-medium">{cat.method}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">{cat.rate}</Badge>
                     </TableCell>
                     <TableCell>{cat.life}</TableCell>
                     <TableCell className="text-right">
@@ -156,7 +198,7 @@ export default function CategoriesPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8"
+                          className="h-8 w-8 hover:bg-accent/20"
                           onClick={() => handleOpenEdit(cat)}
                         >
                           <Edit2 className="h-3 w-3" />
@@ -164,7 +206,7 @@ export default function CategoriesPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-destructive"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
                           onClick={() => handleDelete(cat.id)}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -175,7 +217,7 @@ export default function CategoriesPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                     No categories defined yet.
                   </TableCell>
                 </TableRow>
