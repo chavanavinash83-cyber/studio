@@ -56,6 +56,60 @@
         "invoiceUrl": { "type": "string" }
       },
       "required": ["name", "serialNumber", "category", "location"]
+    },
+    "AssetCategory": {
+      "title": "Asset Category",
+      "description": "Depreciation settings for asset classes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "rate": { "type": "number", "description": "Numeric depreciation rate (e.g., 15 for 15%)" },
+        "life": { "type": "string" },
+        "method": { "type": "string", "enum": ["WDV", "Straight Line", "Purchase Amount"] }
+      },
+      "required": ["name", "rate", "method"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Organizational unit or location.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "type": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["name", "code"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Cost center unit.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "head": { "type": "string" },
+        "costCenter": { "type": "string" }
+      },
+      "required": ["name", "costCenter"]
+    },
+    "Vendor": {
+      "title": "Vendor",
+      "description": "Procurement partner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "gstNumber": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["name"]
     }
   },
   "auth": {
@@ -69,6 +123,22 @@
     "/assets/{assetId}": {
       "schema": "Asset",
       "description": "Asset inventory records."
+    },
+    "/categories/{categoryId}": {
+      "schema": "AssetCategory",
+      "description": "Asset class definitions."
+    },
+    "/branches/{branchId}": {
+      "schema": "Branch",
+      "description": "Branch locations."
+    },
+    "/departments/{deptId}": {
+      "schema": "Department",
+      "description": "Organizational departments."
+    },
+    "/vendors/{vendorId}": {
+      "schema": "Vendor",
+      "description": "Vendor master data."
     }
   }
 }

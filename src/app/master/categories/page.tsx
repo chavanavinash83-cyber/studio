@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tags, Plus, Trash2, Edit2, Calculator } from "lucide-react";
+import { Tags, Plus, Trash2, Edit2, Calculator, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
@@ -13,7 +13,6 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -25,38 +24,39 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-
-type DepreciationMethod = "WDV" | "Straight Line" | "Purchase Amount";
-
-interface Category {
-  id: string;
-  name: string;
-  rate: string;
-  life: string;
-  method: DepreciationMethod;
-}
-
-const INITIAL_CATEGORIES: Category[] = [
-  { id: "1", name: "Buildings", rate: "5%", life: "20 Years", method: "WDV" },
-  { id: "2", name: "Vehicles", rate: "15%", life: "8 Years", method: "WDV" },
-  { id: "3", name: "Electronics Machinery", rate: "15%", life: "10 Years", method: "WDV" },
-  { id: "4", name: "IT Equipment", rate: "33.33%", life: "3 Years", method: "Straight Line" },
-  { id: "5", name: "Furniture", rate: "10%", life: "10 Years", method: "WDV" },
-];
+import { useFirestore, useCollection, errorEmitter } from "@/firebase";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { useToast } from "@/hooks/use-toast";
+import { MasterCategory } from "@/app/lib/types";
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const { toast } = useToast();
+  const db = useFirestore();
+  
+  const categoriesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "categories"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: categories, loading } = useCollection<MasterCategory>(categoriesQuery);
+  
   const [isOpen, setIsOpen] = useState(false);
-  const [formState, setFormState] = useState<Category>({ id: "", name: "", rate: "", life: "", method: "WDV" });
   const [isEditing, setIsEditing] = useState(false);
+  const [formState, setFormState] = useState<Partial<MasterCategory>>({ 
+    name: "", 
+    rate: 15, 
+    life: "", 
+    method: "WDV" 
+  });
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setFormState({ id: "", name: "", rate: "", life: "", method: "WDV" });
+    setFormState({ name: "", rate: 15, life: "", method: "WDV" });
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (category: Category) => {
+  const handleOpenEdit = (category: MasterCategory) => {
     setIsEditing(true);
     setFormState(category);
     setIsOpen(true);
@@ -64,23 +64,60 @@ export default function CategoriesPage() {
 
   const handleSaveCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formState.name) return;
+    if (!db || !formState.name) return;
 
-    if (isEditing) {
-      setCategories(categories.map(c => c.id === formState.id ? formState : c));
+    const categoryData = {
+      ...formState,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (isEditing && formState.id) {
+      const docRef = doc(db, "categories", formState.id);
+      setDoc(docRef, categoryData, { merge: true })
+        .then(() => {
+          toast({ title: "Category Updated", description: `${formState.name} settings saved.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: categoryData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     } else {
-      const categoryToAdd = {
-        ...formState,
-        id: Math.random().toString(36).substr(2, 9),
-      };
-      setCategories([...categories, categoryToAdd]);
+      addDoc(collection(db, "categories"), categoryData)
+        .then((docRef) => {
+          setDoc(docRef, { id: docRef.id }, { merge: true });
+          toast({ title: "Category Created", description: `${formState.name} added to master list.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: "categories",
+            operation: 'create',
+            requestResourceData: categoryData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
-
-    setIsOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setCategories(categories.filter(c => c.id !== id));
+    if (!db) return;
+    const docRef = doc(db, "categories", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Category Deleted", description: "Removed from system." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
@@ -102,7 +139,7 @@ export default function CategoriesPage() {
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit Asset Category" : "Add Asset Category"}</DialogTitle>
               <DialogDescription>
-                {isEditing ? "Update the details for this asset class." : "Define a new asset class with its corresponding depreciation parameters."}
+                Data is saved securely to the SampattiPro cloud.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveCategory}>
@@ -122,7 +159,7 @@ export default function CategoriesPage() {
                   <Label htmlFor="method">Depreciation Method</Label>
                   <Select 
                     value={formState.method} 
-                    onValueChange={(val: DepreciationMethod) => setFormState({ ...formState, method: val })}
+                    onValueChange={(val: any) => setFormState({ ...formState, method: val })}
                   >
                     <SelectTrigger id="method">
                       <SelectValue placeholder="Select Method" />
@@ -140,17 +177,19 @@ export default function CategoriesPage() {
                     <Label htmlFor="rate">Depreciation Rate (%)</Label>
                     <Input 
                       id="rate" 
-                      placeholder="e.g. 10%" 
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 15" 
                       value={formState.rate}
-                      onChange={(e) => setFormState({ ...formState, rate: e.target.value })}
+                      onChange={(e) => setFormState({ ...formState, rate: parseFloat(e.target.value) || 0 })}
                       required
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="life">Expected Life</Label>
+                    <Label htmlFor="life">Expected Life (Years)</Label>
                     <Input 
                       id="life" 
-                      placeholder="e.g. 5 Years" 
+                      placeholder="e.g. 5" 
                       value={formState.life}
                       onChange={(e) => setFormState({ ...formState, life: e.target.value })}
                       required
@@ -168,62 +207,69 @@ export default function CategoriesPage() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="font-bold">Category Name</TableHead>
-                <TableHead className="font-bold">Method</TableHead>
-                <TableHead className="font-bold">Rate</TableHead>
-                <TableHead className="font-bold">Expected Life</TableHead>
-                <TableHead className="text-right font-bold">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.length > 0 ? (
-                categories.map((cat) => (
-                  <TableRow key={cat.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-bold">{cat.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calculator className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm font-medium">{cat.method}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">{cat.rate}</Badge>
-                    </TableCell>
-                    <TableCell>{cat.life}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          onClick={() => handleOpenEdit(cat)}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(cat.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p>Fetching asset classes...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="font-bold">Category Name</TableHead>
+                  <TableHead className="font-bold">Method</TableHead>
+                  <TableHead className="font-bold">Rate</TableHead>
+                  <TableHead className="font-bold">Expected Life</TableHead>
+                  <TableHead className="text-right font-bold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <TableRow key={cat.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-bold">{cat.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Calculator className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm font-medium">{cat.method}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">{cat.rate}%</Badge>
+                      </TableCell>
+                      <TableCell>{cat.life} Years</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            onClick={() => handleOpenEdit(cat)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(cat.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      No categories defined yet.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    No categories defined yet.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

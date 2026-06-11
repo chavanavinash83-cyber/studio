@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Asset, AssetCategory, AssetStatus, BranchLocation } from "../lib/types";
+import { Asset, AssetStatus, MasterCategory } from "../lib/types";
 import { 
   Table, 
   TableBody, 
@@ -43,12 +43,25 @@ export default function InventoryPage() {
   const { toast } = useToast();
   const db = useFirestore();
   
+  // Dynamic Queries
   const assetsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, "assets"), orderBy("name", "asc"));
   }, [db]);
 
+  const categoriesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "categories"), orderBy("name", "asc"));
+  }, [db]);
+
+  const branchesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "branches"), orderBy("name", "asc"));
+  }, [db]);
+
   const { data: assets, loading } = useCollection<Asset>(assetsQuery);
+  const { data: categories } = useCollection<MasterCategory>(categoriesQuery);
+  const { data: branches } = useCollection<any>(branchesQuery);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -62,8 +75,8 @@ export default function InventoryPage() {
     name: "",
     model: "",
     serialNumber: "",
-    category: "IT Equipment",
-    location: "Khodad",
+    category: "",
+    location: "",
     department: "Administration",
     status: "Active",
     purchaseDate: format(new Date(), 'yyyy-MM-dd'),
@@ -88,6 +101,16 @@ export default function InventoryPage() {
     }
   }, [currentAsset.installationDate, currentAsset.warrantyPeriodMonths]);
 
+  // Update depreciation rate when category changes
+  useEffect(() => {
+    if (currentAsset.category && categories) {
+      const cat = categories.find(c => c.name === currentAsset.category);
+      if (cat) {
+        setCurrentAsset(prev => ({ ...prev, depreciationRate: cat.rate }));
+      }
+    }
+  }, [currentAsset.category, categories]);
+
   const filteredAssets = (assets || []).filter(asset => {
     const matchesSearch = 
       asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -103,8 +126,8 @@ export default function InventoryPage() {
       name: "",
       model: "",
       serialNumber: "",
-      category: "IT Equipment",
-      location: "Khodad",
+      category: categories?.[0]?.name || "",
+      location: branches?.[0]?.name || "",
       department: "Administration",
       status: "Active",
       purchaseDate: format(new Date(), 'yyyy-MM-dd'),
@@ -188,7 +211,6 @@ export default function InventoryPage() {
     } else {
       addDoc(collection(db, "assets"), assetData)
         .then((docRef) => {
-          // We can optionally set the generated ID into the document itself if needed
           setDoc(docRef, { id: docRef.id }, { merge: true });
           toast({ title: "Asset Registered", description: `${currentAsset.name} added to inventory.` });
           setIsDialogOpen(false);
@@ -281,17 +303,16 @@ export default function InventoryPage() {
                   <Label>Category</Label>
                   <Select 
                     value={currentAsset.category} 
-                    onValueChange={v => setCurrentAsset({...currentAsset, category: v as AssetCategory})}
+                    onValueChange={v => setCurrentAsset({...currentAsset, category: v})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Buildings">Buildings</SelectItem>
-                      <SelectItem value="Building Lands">Building Lands</SelectItem>
-                      <SelectItem value="Vehicles">Vehicles</SelectItem>
-                      <SelectItem value="Electronics Machinery">Machinery</SelectItem>
-                      <SelectItem value="IT Equipment">IT Equipment</SelectItem>
+                      {categories?.map(cat => (
+                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                      ))}
+                      {!categories?.length && <SelectItem value="IT Equipment">IT Equipment</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -319,16 +340,21 @@ export default function InventoryPage() {
                   <Label>Branch Location</Label>
                   <Select 
                     value={currentAsset.location} 
-                    onValueChange={v => setCurrentAsset({...currentAsset, location: v as BranchLocation})}
+                    onValueChange={v => setCurrentAsset({...currentAsset, location: v})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Khodad">Khodad</SelectItem>
-                      <SelectItem value="Manjarwadi">Manjarwadi</SelectItem>
-                      <SelectItem value="Sultanpur">Sultanpur</SelectItem>
-                      <SelectItem value="Ghodegaon">Ghodegaon</SelectItem>
+                      {branches?.map(b => (
+                        <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                      ))}
+                      {!branches?.length && (
+                        <>
+                          <SelectItem value="Khodad">Khodad</SelectItem>
+                          <SelectItem value="Manjarwadi">Manjarwadi</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -482,7 +508,7 @@ export default function InventoryPage() {
                       id="pval" 
                       type="number" 
                       value={currentAsset.purchaseValue} 
-                      onChange={e => setCurrentAsset({...currentAsset, purchaseValue: parseFloat(e.target.value)})}
+                      onChange={e => setCurrentAsset({...currentAsset, purchaseValue: parseFloat(e.target.value) || 0})}
                     />
                   </div>
                   <div className="space-y-2">
@@ -491,7 +517,7 @@ export default function InventoryPage() {
                       id="bval" 
                       type="number" 
                       value={currentAsset.currentBookValue} 
-                      onChange={e => setCurrentAsset({...currentAsset, currentBookValue: parseFloat(e.target.value)})}
+                      onChange={e => setCurrentAsset({...currentAsset, currentBookValue: parseFloat(e.target.value) || 0})}
                     />
                   </div>
                   <div className="md:col-span-2 space-y-2">
@@ -501,7 +527,7 @@ export default function InventoryPage() {
                       type="number" 
                       step="0.01"
                       value={currentAsset.depreciationRate} 
-                      onChange={e => setCurrentAsset({...currentAsset, depreciationRate: parseFloat(e.target.value)})}
+                      onChange={e => setCurrentAsset({...currentAsset, depreciationRate: parseFloat(e.target.value) || 0})}
                     />
                   </div>
                 </div>
@@ -534,11 +560,9 @@ export default function InventoryPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Buildings">Buildings</SelectItem>
-              <SelectItem value="Building Lands">Building Lands</SelectItem>
-              <SelectItem value="Vehicles">Vehicles</SelectItem>
-              <SelectItem value="Electronics Machinery">Machinery</SelectItem>
-              <SelectItem value="IT Equipment">IT Equipment</SelectItem>
+              {categories?.map(cat => (
+                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

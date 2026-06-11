@@ -1,7 +1,7 @@
 
-export type BranchLocation = 'Khodad' | 'Manjarwadi' | 'Sultanpur' | 'Ghodegaon';
+export type BranchLocation = string;
 
-export type AssetCategory = 'Buildings' | 'Building Lands' | 'Vehicles' | 'Electronics Machinery' | 'IT Equipment';
+export type AssetCategory = string;
 
 export type AssetStatus = 'Active' | 'In Warehouse' | 'Under Repair' | 'Disposed';
 
@@ -25,6 +25,14 @@ export interface Asset {
   depreciationRate: number; // 5, 10, 15, or 33.33
   assetPhotoUrl?: string;
   invoiceUrl?: string;
+}
+
+export interface MasterCategory {
+  id: string;
+  name: string;
+  rate: number;
+  life: string;
+  method: "WDV" | "Straight Line" | "Purchase Amount";
 }
 
 export interface MaintenanceRecord {
