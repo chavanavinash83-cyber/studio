@@ -86,15 +86,14 @@
     },
     "Department": {
       "title": "Department",
-      "description": "Cost center unit.",
+      "description": "Organizational unit within a branch.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "head": { "type": "string" },
-        "costCenter": { "type": "string" }
+        "branch": { "type": "string", "description": "The branch this department belongs to." }
       },
-      "required": ["name", "costCenter"]
+      "required": ["name", "branch"]
     },
     "Vendor": {
       "title": "Vendor",

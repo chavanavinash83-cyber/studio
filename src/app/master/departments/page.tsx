@@ -11,8 +11,7 @@ import {
   Edit2, 
   Trash2,
   Search, 
-  UserCircle, 
-  Hash,
+  MapPin,
   Loader2
 } from "lucide-react";
 import { 
@@ -23,6 +22,13 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
@@ -33,8 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Department {
   id: string;
   name: string;
-  head: string;
-  costCenter: string;
+  branch: string;
 }
 
 export default function DepartmentsPage() {
@@ -46,7 +51,13 @@ export default function DepartmentsPage() {
     return query(collection(db, "departments"), orderBy("name", "asc"));
   }, [db]);
 
+  const branchesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "branches"), orderBy("name", "asc"));
+  }, [db]);
+
   const { data: departments, loading } = useCollection<Department>(departmentsQuery);
+  const { data: branches } = useCollection<any>(branchesQuery);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -54,19 +65,17 @@ export default function DepartmentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentDept, setCurrentDept] = useState<Partial<Department>>({
     name: "",
-    head: "",
-    costCenter: "",
+    branch: "",
   });
 
   const filteredDepartments = (departments || []).filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    d.head?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.costCenter.toLowerCase().includes(searchTerm.toLowerCase())
+    d.branch?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setCurrentDept({ name: "", head: "", costCenter: "" });
+    setCurrentDept({ name: "", branch: branches?.[0]?.name || "" });
     setIsOpen(true);
   };
 
@@ -93,7 +102,7 @@ export default function DepartmentsPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !currentDept.name || !currentDept.costCenter) return;
+    if (!db || !currentDept.name || !currentDept.branch) return;
 
     setIsSubmitting(true);
     const deptData = {
@@ -137,7 +146,7 @@ export default function DepartmentsPage() {
             <Briefcase className="h-8 w-8 text-accent" />
             Departments
           </h1>
-          <p className="text-muted-foreground">Organizational departments and cost center management.</p>
+          <p className="text-muted-foreground">Organizational departments within specific branch locations.</p>
         </div>
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -148,7 +157,7 @@ export default function DepartmentsPage() {
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit Department" : "Add New Department"}</DialogTitle>
               <DialogDescription>
-                Fill in the details for the organizational unit and its reporting head.
+                Define the department name and assign it to a branch.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSave}>
@@ -164,31 +173,20 @@ export default function DepartmentsPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="head">Department Head</Label>
-                  <div className="relative">
-                    <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="head" 
-                      className="pl-10"
-                      placeholder="e.g. John Wick" 
-                      value={currentDept.head}
-                      onChange={(e) => setCurrentDept({ ...currentDept, head: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="costCenter">Cost Center Code</Label>
-                  <div className="relative">
-                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="costCenter" 
-                      className="pl-10"
-                      placeholder="e.g. CC-QA-001" 
-                      value={currentDept.costCenter}
-                      onChange={(e) => setCurrentDept({ ...currentDept, costCenter: e.target.value })}
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="branch">Assigned Branch</Label>
+                  <Select 
+                    value={currentDept.branch} 
+                    onValueChange={(val) => setCurrentDept({ ...currentDept, branch: val })}
+                  >
+                    <SelectTrigger id="branch">
+                      <SelectValue placeholder="Select Branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches?.map((branch: any) => (
+                        <SelectItem key={branch.id} value={branch.name}>{branch.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -213,7 +211,7 @@ export default function DepartmentsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Search by name, head or cost center..." 
+              placeholder="Search by name or branch..." 
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -231,8 +229,7 @@ export default function DepartmentsPage() {
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="font-bold">Dept Name</TableHead>
-                  <TableHead className="font-bold">Dept Head</TableHead>
-                  <TableHead className="font-bold">Cost Center</TableHead>
+                  <TableHead className="font-bold">Branch Location</TableHead>
                   <TableHead className="text-right font-bold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -248,14 +245,9 @@ export default function DepartmentsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <UserCircle className="h-4 w-4 text-muted-foreground" />
-                          {dept.head || "Not Assigned"}
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          {dept.branch || "Not Assigned"}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-code text-xs bg-secondary/10 text-secondary px-2 py-1 rounded">
-                          {dept.costCenter}
-                        </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -281,7 +273,7 @@ export default function DepartmentsPage() {
                   ))
                 ) : (
                   <TableRow key="no-data-departments">
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                       No departments found.
                     </TableCell>
                   </TableRow>

@@ -29,10 +29,10 @@ export async function seedDemoData(db: Firestore) {
 
   // 3. Seed Departments
   const depts = [
-    { name: 'Administration', head: 'Rajesh Patil', costCenter: 'ADM-001' },
-    { name: 'IT Support', head: 'Sandeep Varma', costCenter: 'IT-404' },
-    { name: 'Logistics', head: 'Amit Shinde', costCenter: 'LOG-777' },
-    { name: 'Manufacturing', head: 'Sanjay Kale', costCenter: 'MFG-501' },
+    { name: 'Administration', branch: 'Khodad' },
+    { name: 'IT Support', branch: 'Sultanpur' },
+    { name: 'Logistics', branch: 'Manjarwadi' },
+    { name: 'Manufacturing', branch: 'Ghodegaon' },
   ];
   for (const d of depts) {
     await addDoc(collection(db, 'departments'), { ...d, updatedAt: serverTimestamp() });
