@@ -1,0 +1,44 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Extended user information for SampattiPro access control.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique Firebase Auth ID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Super Admin", "Branch Manager", "Auditor", "IT Admin"],
+          "description": "System access level."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Primary branch location assigned to the user."
+        }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents."
+    }
+  }
+}
