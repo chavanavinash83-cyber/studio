@@ -1,0 +1,29 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "Professional dashboard showing asset management statistics",
+      "imageUrl": "https://picsum.photos/seed/sampatti1/1200/600",
+      "imageHint": "dashboard analytics"
+    },
+    {
+      "id": "asset-building",
+      "description": "Commercial office building representing real estate assets",
+      "imageUrl": "https://picsum.photos/seed/sampatti2/400/300",
+      "imageHint": "office building"
+    },
+    {
+      "id": "asset-vehicle",
+      "description": "Company delivery van representing fleet assets",
+      "imageUrl": "https://picsum.photos/seed/sampatti3/400/300",
+      "imageHint": "delivery van"
+    },
+    {
+      "id": "asset-it",
+      "description": "Modern server room representing IT equipment",
+      "imageUrl": "https://picsum.photos/seed/sampatti4/400/300",
+      "imageHint": "server equipment"
+    }
+  ]
+}
