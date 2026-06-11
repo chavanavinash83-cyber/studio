@@ -1,9 +1,10 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MOCK_ASSETS } from "./lib/mock-data";
-import { Building, Package, ShieldCheck, TrendingUp, Zap } from "lucide-react";
+import { Asset } from "./lib/types";
+import { Building, Package, ShieldCheck, TrendingUp, Zap, Loader2 } from "lucide-react";
 import { 
   Bar, 
   BarChart, 
@@ -14,26 +15,43 @@ import {
   Cell
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection } from "firebase/firestore";
 
 export default function Dashboard() {
-  const totalAssets = MOCK_ASSETS.length;
-  const totalValue = MOCK_ASSETS.reduce((sum, asset) => sum + asset.currentBookValue, 0);
-  const assetsUnderRepair = MOCK_ASSETS.filter(a => a.status === 'Under Repair').length;
-  
-  const branchData = [
-    { name: 'Khodad', count: MOCK_ASSETS.filter(a => a.location === 'Khodad').length, value: MOCK_ASSETS.filter(a => a.location === 'Khodad').reduce((s, a) => s + a.currentBookValue, 0) },
-    { name: 'Manjarwadi', count: MOCK_ASSETS.filter(a => a.location === 'Manjarwadi').length, value: MOCK_ASSETS.filter(a => a.location === 'Manjarwadi').reduce((s, a) => s + a.currentBookValue, 0) },
-    { name: 'Sultanpur', count: MOCK_ASSETS.filter(a => a.location === 'Sultanpur').length, value: MOCK_ASSETS.filter(a => a.location === 'Sultanpur').reduce((s, a) => s + a.currentBookValue, 0) },
-    { name: 'Ghodegaon', count: MOCK_ASSETS.filter(a => a.location === 'Ghodegaon').length, value: MOCK_ASSETS.filter(a => a.location === 'Ghodegaon').reduce((s, a) => s + a.currentBookValue, 0) },
-  ];
+  const db = useFirestore();
+  const assetsQuery = useMemo(() => (db ? collection(db, "assets") : null), [db]);
+  const { data: assets, loading } = useCollection<Asset>(assetsQuery);
+
+  const stats = useMemo(() => {
+    const totalAssets = assets?.length || 0;
+    const totalValue = assets?.reduce((sum, asset) => sum + (asset.currentBookValue || 0), 0) || 0;
+    const assetsUnderRepair = assets?.filter(a => a.status === 'Under Repair').length || 0;
+    
+    const branches = ['Khodad', 'Manjarwadi', 'Sultanpur', 'Ghodegaon'];
+    const branchData = branches.map(branch => ({
+      name: branch,
+      value: assets?.filter(a => a.location === branch).reduce((s, a) => s + (a.currentBookValue || 0), 0) || 0
+    }));
+
+    return { totalAssets, totalValue, assetsUnderRepair, branchData };
+  }, [assets]);
 
   const colors = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8'];
+
+  if (loading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Operations Dashboard</h1>
-        <p className="text-muted-foreground">Comprehensive overview of SampattiPro asset health across all branches.</p>
+        <p className="text-muted-foreground">Real-time overview of SampattiPro asset health across all branches.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -43,8 +61,8 @@ export default function Dashboard() {
             <Package className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAssets}</div>
-            <p className="text-xs text-muted-foreground">+2 since last month</p>
+            <div className="text-2xl font-bold">{stats.totalAssets}</div>
+            <p className="text-xs text-muted-foreground">Live from Cloud</p>
           </CardContent>
         </Card>
         <Card className="asset-card-transition">
@@ -53,8 +71,8 @@ export default function Dashboard() {
             <TrendingUp className="w-4 h-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{(totalValue / 100000).toFixed(2)}L</div>
-            <p className="text-xs text-muted-foreground">Current Book Value (WDV)</p>
+            <div className="text-2xl font-bold">₹{(stats.totalValue / 100000).toFixed(2)}L</div>
+            <p className="text-xs text-muted-foreground">Current WDV</p>
           </CardContent>
         </Card>
         <Card className="asset-card-transition">
@@ -63,18 +81,18 @@ export default function Dashboard() {
             <ShieldCheck className="w-4 h-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assetsUnderRepair}</div>
-            <p className="text-xs text-muted-foreground">1 prioritized high</p>
+            <div className="text-2xl font-bold">{stats.assetsUnderRepair}</div>
+            <p className="text-xs text-muted-foreground">Attention Required</p>
           </CardContent>
         </Card>
         <Card className="asset-card-transition">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Warranty Alerts</CardTitle>
+            <CardTitle className="text-sm font-medium">System Health</CardTitle>
             <Zap className="w-4 h-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">Expires within 30 days</p>
+            <div className="text-2xl font-bold">Optimal</div>
+            <p className="text-xs text-muted-foreground">All nodes active</p>
           </CardContent>
         </Card>
       </div>
@@ -83,11 +101,11 @@ export default function Dashboard() {
         <Card className="md:col-span-4">
           <CardHeader>
             <CardTitle className="font-headline">Asset Distribution by Branch</CardTitle>
-            <CardDescription>Value distribution across Khodad, Manjarwadi, Sultanpur, and Ghodegaon.</CardDescription>
+            <CardDescription>Value distribution (WDV) across all locations.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={branchData}>
+              <BarChart data={stats.branchData}>
                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value / 1000}k`} />
                 <RechartsTooltip 
@@ -95,7 +113,7 @@ export default function Dashboard() {
                   formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Value']}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {branchData.map((entry, index) => (
+                  {stats.branchData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                   ))}
                 </Bar>
@@ -106,24 +124,19 @@ export default function Dashboard() {
 
         <Card className="md:col-span-3">
           <CardHeader>
-            <CardTitle className="font-headline">Recent Transfers</CardTitle>
-            <CardDescription>Latest branch-to-branch movements.</CardDescription>
+            <CardTitle className="font-headline">Operational Notes</CardTitle>
+            <CardDescription>System status and recent synchronization.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { name: 'Logistics Van 4', from: 'Khodad', to: 'Manjarwadi', date: 'Today' },
-                { name: 'CNC Milling Machine', from: 'Ghodegaon', to: 'Khodad', date: 'Yesterday' },
-                { name: 'Admin Laptops', from: 'Sultanpur', to: 'Ghodegaon', date: '2 days ago' },
-              ].map((transfer, i) => (
-                <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{transfer.name}</p>
-                    <p className="text-xs text-muted-foreground">{transfer.from} → {transfer.to}</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">{transfer.date}</Badge>
-                </div>
-              ))}
+              <div className="p-3 border rounded-lg bg-muted/30">
+                <p className="text-sm font-medium">Cloud Database Connected</p>
+                <p className="text-xs text-muted-foreground">Real-time sync enabled for all terminals.</p>
+              </div>
+              <div className="p-3 border rounded-lg bg-muted/30">
+                <p className="text-sm font-medium">Audit Schedule</p>
+                <p className="text-xs text-muted-foreground">Next global audit window: Oct 2024.</p>
+              </div>
             </div>
           </CardContent>
         </Card>

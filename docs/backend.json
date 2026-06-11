@@ -30,6 +30,32 @@
         }
       },
       "required": ["uid", "email"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Enterprise asset record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "model": { "type": "string" },
+        "category": { "type": "string" },
+        "purchaseDate": { "type": "string" },
+        "installationDate": { "type": "string" },
+        "purchaseValue": { "type": "number" },
+        "currentBookValue": { "type": "number" },
+        "location": { "type": "string" },
+        "department": { "type": "string" },
+        "status": { "type": "string" },
+        "warrantyPeriodMonths": { "type": "number" },
+        "warrantyExpiry": { "type": "string" },
+        "vendorName": { "type": "string" },
+        "depreciationRate": { "type": "number" },
+        "assetPhotoUrl": { "type": "string" },
+        "invoiceUrl": { "type": "string" }
+      },
+      "required": ["name", "serialNumber", "category", "location"]
     }
   },
   "auth": {
@@ -39,6 +65,10 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "User profile documents."
+    },
+    "/assets/{assetId}": {
+      "schema": "Asset",
+      "description": "Asset inventory records."
     }
   }
 }
