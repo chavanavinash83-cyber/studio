@@ -57,6 +57,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { Asset, MaintenanceRecord } from "../lib/types";
+import { calculateDepreciation } from "../lib/depreciation";
+import { format } from "date-fns";
 
 export default function ReportsPage() {
   const { toast } = useToast();
@@ -148,25 +150,32 @@ export default function ReportsPage() {
       let content = "";
       let fileName = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
       let mimeType = "";
+      const calculationDate = format(new Date(), 'yyyy-MM-dd');
 
       if (type === 'Excel') {
-        const headers = "ID,Name,SerialNumber,Category,Location,PurchaseValue,BookValue\n";
-        const rows = filteredAssets.map(a => 
-          `${a.id},${a.name},${a.serialNumber},${a.category},${a.location},${a.purchaseValue},${a.currentBookValue}`
-        ).join("\n");
+        const headers = "Branch,Category,Asset Name,Serial Number,Purchase Date,Vendor,Warranty Expiry,Purchase Amount,Opening WDV,Depr %,Depr Amount,Closing WDV\n";
+        const rows = filteredAssets.map(a => {
+          const depr = calculateDepreciation(a, calculationDate);
+          return `${a.location},${a.category},${a.name},${a.serialNumber},${a.purchaseDate},${a.vendorName || 'N/A'},${a.warrantyExpiry || 'N/A'},${a.purchaseValue},${a.currentBookValue},${a.depreciationRate}%,${depr.amount.toFixed(2)},${depr.newValue.toFixed(2)}`;
+        }).join("\n");
         content = headers + rows;
         fileName += ".csv";
         mimeType = "text/csv";
       } else {
-        content = `SAMPATTIPRO - ${reportName}\n`;
+        content = `SAMPATTIPRO - ${reportName.toUpperCase()}\n`;
         content += `Filters: Branch: ${branchFilter}, Category: ${categoryFilter}\n`;
         content += `Generated on: ${new Date().toLocaleString()}\n`;
-        content += `-------------------------------------------\n\n`;
+        content += `========================================================================================================\n\n`;
+        
         filteredAssets.forEach(a => {
-          content += `Asset: ${a.name} (${a.id})\n`;
-          content += `Location: ${a.location} | Category: ${a.category}\n`;
-          content += `Value: ₹${(a.currentBookValue || 0).toLocaleString()}\n`;
-          content += `-------------------------------------------\n`;
+          const depr = calculateDepreciation(a, calculationDate);
+          content += `BRANCH: ${a.location.toUpperCase()} | CATEGORY: ${a.category}\n`;
+          content += `ASSET: ${a.name} (${a.serialNumber})\n`;
+          content += `PURCHASE: Date: ${a.purchaseDate} | Vendor: ${a.vendorName || 'N/A'} | Cost: ₹${(a.purchaseValue || 0).toLocaleString()}\n`;
+          content += `WARRANTY: ${a.warrantyExpiry || 'N/A'}\n`;
+          content += `DEPRECIATION: Rate: ${a.depreciationRate}% | Amount: ₹${depr.amount.toLocaleString()}\n`;
+          content += `FINANCIALS: Opening WDV: ₹${(a.currentBookValue || 0).toLocaleString()} | Closing Balance: ₹${depr.newValue.toLocaleString()}\n`;
+          content += `--------------------------------------------------------------------------------------------------------\n`;
         });
         fileName += ".txt";
         mimeType = "text/plain";
@@ -195,7 +204,7 @@ export default function ReportsPage() {
   };
 
   const reportTemplates = [
-    { title: "Branch Wise Asset Report", desc: "Detailed breakdown of assets grouped by geographical locations.", icon: MapPin },
+    { title: "Branch Wise Asset Report", desc: "Detailed breakdown including purchase, vendor, and full depreciation ledger.", icon: MapPin },
     { title: "Category Wise Report", desc: "Consolidated list of assets categorized by their asset classes.", icon: Tags },
     { title: "Depreciation Report", desc: "Annual WDV calculation and fiscal year depreciation schedules.", icon: Calculator },
     { title: "Vendor Wise Report", desc: "Procurement history and spend analysis per supplier.", icon: Store },
@@ -447,7 +456,7 @@ export default function ReportsPage() {
               <div 
                 key={i} 
                 className="flex items-start gap-3 p-4 border rounded-xl hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
-                onClick={() => handleExport('PDF', report.title)}
+                onClick={() => handleExport(report.title === "Branch Wise Asset Report" ? 'Excel' : 'PDF', report.title)}
               >
                 <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                   <report.icon className="h-4 w-4" />
