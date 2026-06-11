@@ -54,3 +54,14 @@ export interface TransferRecord {
   authorizedBy: string;
   remarks: string;
 }
+
+export interface Firm {
+  id: string;
+  name: string;
+  registrationNumber?: string;
+  gstNumber?: string;
+  address?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+}

@@ -16,7 +16,8 @@ import {
   Users,
   ChevronRight,
   Calculator,
-  FileText
+  FileText,
+  Landmark
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -78,6 +79,11 @@ const mainItems = [
 ];
 
 const masterItems = [
+  {
+    title: "Firm Details",
+    url: "/master/firms",
+    icon: Landmark,
+  },
   {
     title: "Asset Categories",
     url: "/master/categories",
