@@ -101,31 +101,17 @@ export default function UsersPage() {
     if (isEditing && currentUser.id) {
       const docRef = doc(db, "users", currentUser.id);
       setDoc(docRef, userData, { merge: true })
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
-            operation: 'update',
+            operation: 'write',
             requestResourceData: userData,
           });
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
       addDoc(collection(db, "users"), userData)
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "users",
             operation: 'create',
@@ -134,23 +120,26 @@ export default function UsersPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     }
+
+    // Immediate non-blocking toast and form close
+    toast({ title: "Success", description: "Saved successfully." });
+    setIsOpen(false);
+    setIsSubmitting(false);
   };
 
   const handleDelete = (id: string) => {
     if (!db) return;
     const docRef = doc(db, "users", id);
     deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Success", description: "User deleted successfully." });
-      })
       .catch(async (error) => {
-        toast({ variant: "destructive", title: "Failed", description: "Failed to delete user." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+    
+    toast({ title: "Success", description: "User deleted successfully." });
   };
 
   return (
@@ -340,7 +329,7 @@ export default function UsersPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow key="no-data">
+                  <TableRow key="no-data-users">
                     <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                       No users found.
                     </TableCell>

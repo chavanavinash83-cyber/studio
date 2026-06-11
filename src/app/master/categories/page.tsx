@@ -76,31 +76,17 @@ export default function CategoriesPage() {
     if (isEditing && formState.id) {
       const docRef = doc(db, "categories", formState.id);
       setDoc(docRef, categoryData, { merge: true })
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
-            operation: 'update',
+            operation: 'write',
             requestResourceData: categoryData,
           });
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
       addDoc(collection(db, "categories"), categoryData)
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "categories",
             operation: 'create',
@@ -109,23 +95,26 @@ export default function CategoriesPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     }
+
+    // Immediate non-blocking feedback
+    toast({ title: "Success", description: "Saved successfully." });
+    setIsOpen(false);
+    setIsSubmitting(false);
   };
 
   const handleDelete = (id: string) => {
     if (!db) return;
     const docRef = doc(db, "categories", id);
     deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Success", description: "Category deleted successfully." });
-      })
       .catch(async (error) => {
-        toast({ variant: "destructive", title: "Failed", description: "Failed to delete category." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+    
+    toast({ title: "Success", description: "Category deleted successfully." });
   };
 
   return (

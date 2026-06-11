@@ -89,31 +89,17 @@ export default function DepartmentsPage() {
     if (isEditing && currentDept.id) {
       const docRef = doc(db, "departments", currentDept.id);
       setDoc(docRef, deptData, { merge: true })
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
-            operation: 'update',
+            operation: 'write',
             requestResourceData: deptData,
           });
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
       addDoc(collection(db, "departments"), deptData)
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "departments",
             operation: 'create',
@@ -122,23 +108,26 @@ export default function DepartmentsPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     }
+
+    // Optimistic feedback
+    toast({ title: "Success", description: "Saved successfully." });
+    setIsOpen(false);
+    setIsSubmitting(false);
   };
 
   const handleDelete = (id: string) => {
     if (!db) return;
     const docRef = doc(db, "departments", id);
     deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Success", description: "Department deleted successfully." });
-      })
       .catch(async (error) => {
-        toast({ variant: "destructive", title: "Failed", description: "Failed to delete department." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+    
+    toast({ title: "Success", description: "Department deleted successfully." });
   };
 
   return (
@@ -292,7 +281,7 @@ export default function DepartmentsPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow key="no-data">
+                  <TableRow key="no-data-departments">
                     <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                       No departments found.
                     </TableCell>

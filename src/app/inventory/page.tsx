@@ -153,17 +153,15 @@ export default function InventoryPage() {
     if (!db) return;
     const docRef = doc(db, "assets", id);
     deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Success", description: "Asset deleted successfully." });
-      })
       .catch(async (error) => {
-        toast({ variant: "destructive", title: "Failed", description: "Failed to delete asset." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+    
+    toast({ title: "Success", description: "Asset deleted successfully." });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'invoice') => {
@@ -195,31 +193,17 @@ export default function InventoryPage() {
     if (isEditing && currentAsset.id) {
       const docRef = doc(db, "assets", currentAsset.id);
       setDoc(docRef, assetData, { merge: true })
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsDialogOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
-            operation: 'update',
+            operation: 'write',
             requestResourceData: assetData,
           });
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
       addDoc(collection(db, "assets"), assetData)
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsDialogOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "assets",
             operation: 'create',
@@ -228,6 +212,11 @@ export default function InventoryPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     }
+
+    // Non-blocking optimistic UI feedback
+    toast({ title: "Success", description: "Saved successfully." });
+    setIsDialogOpen(false);
+    setIsSubmitting(false);
   };
 
   const getStatusBadge = (status: string) => {

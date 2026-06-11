@@ -109,31 +109,17 @@ export default function VendorsPage() {
     if (isEditing && currentVendor.id) {
       const docRef = doc(db, "vendors", currentVendor.id);
       setDoc(docRef, vendorData, { merge: true })
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
-            operation: 'update',
+            operation: 'write',
             requestResourceData: vendorData,
           });
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
       addDoc(collection(db, "vendors"), vendorData)
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "vendors",
             operation: 'create',
@@ -142,23 +128,26 @@ export default function VendorsPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     }
+
+    // Optimistic non-blocking update
+    toast({ title: "Success", description: "Saved successfully." });
+    setIsOpen(false);
+    setIsSubmitting(false);
   };
 
   const handleDelete = (id: string) => {
     if (!db) return;
     const docRef = doc(db, "vendors", id);
     deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Success", description: "Vendor deleted successfully." });
-      })
       .catch(async (error) => {
-        toast({ variant: "destructive", title: "Failed", description: "Failed to delete vendor." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+    
+    toast({ title: "Success", description: "Vendor deleted successfully." });
   };
 
   return (
@@ -385,7 +374,7 @@ export default function VendorsPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow key="no-data">
+                  <TableRow key="no-data-vendors">
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No vendors found.
                     </TableCell>

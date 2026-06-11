@@ -89,31 +89,17 @@ export default function BranchesPage() {
     if (isEditing && currentBranch.id) {
       const docRef = doc(db, "branches", currentBranch.id);
       setDoc(docRef, branchData, { merge: true })
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
-            operation: 'update',
+            operation: 'write',
             requestResourceData: branchData,
           });
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
       addDoc(collection(db, "branches"), branchData)
-        .then(() => {
-          toast({ title: "Success", description: "Saved successfully." });
-          setIsOpen(false);
-          setIsSubmitting(false);
-        })
         .catch(async (error) => {
-          setIsSubmitting(false);
-          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "branches",
             operation: 'create',
@@ -122,23 +108,26 @@ export default function BranchesPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     }
+
+    // Optimistic non-blocking update
+    toast({ title: "Success", description: "Saved successfully." });
+    setIsOpen(false);
+    setIsSubmitting(false);
   };
 
   const handleDelete = (id: string) => {
     if (!db) return;
     const docRef = doc(db, "branches", id);
     deleteDoc(docRef)
-      .then(() => {
-        toast({ title: "Success", description: "Branch deleted successfully." });
-      })
       .catch(async (error) => {
-        toast({ variant: "destructive", title: "Failed", description: "Failed to delete branch." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+    
+    toast({ title: "Success", description: "Branch deleted successfully." });
   };
 
   return (
