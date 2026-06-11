@@ -9,6 +9,7 @@ import {
   Briefcase, 
   Plus, 
   Edit2, 
+  Trash2,
   Search, 
   UserCircle, 
   Hash,
@@ -25,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 
@@ -73,6 +74,21 @@ export default function DepartmentsPage() {
     setIsEditing(true);
     setCurrentDept(dept);
     setIsOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db) return;
+    const docRef = doc(db, "departments", id);
+    deleteDoc(docRef)
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+    
+    toast({ title: "Deleted", description: "Department removed successfully." });
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -250,6 +266,14 @@ export default function DepartmentsPage() {
                             onClick={() => handleOpenEdit(dept)}
                           >
                             <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-destructive/10 text-destructive"
+                            onClick={() => handleDelete(dept.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </TableCell>

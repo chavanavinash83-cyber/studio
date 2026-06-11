@@ -9,6 +9,7 @@ import {
   Store, 
   Plus, 
   Edit2, 
+  Trash2,
   Phone, 
   Mail, 
   User, 
@@ -29,7 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,6 +94,21 @@ export default function VendorsPage() {
     setIsEditing(true);
     setCurrentVendor(vendor);
     setIsOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db) return;
+    const docRef = doc(db, "vendors", id);
+    deleteDoc(docRef)
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+    
+    toast({ title: "Deleted", description: "Vendor removed successfully." });
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -343,6 +359,14 @@ export default function VendorsPage() {
                             onClick={() => handleOpenEdit(vendor)}
                           >
                             <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-destructive/10 text-destructive"
+                            onClick={() => handleDelete(vendor.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </TableCell>

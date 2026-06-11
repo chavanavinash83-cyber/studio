@@ -12,6 +12,7 @@ import {
   UserCircle, 
   MapPin, 
   Edit2, 
+  Trash2,
   Mail, 
   Search,
   Loader2 
@@ -36,7 +37,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 
@@ -85,6 +86,21 @@ export default function UsersPage() {
     setIsEditing(true);
     setCurrentUser(user);
     setIsOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!db) return;
+    const docRef = doc(db, "users", id);
+    deleteDoc(docRef)
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+    
+    toast({ title: "Deleted", description: "User record removed successfully." });
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -298,6 +314,14 @@ export default function UsersPage() {
                             onClick={() => handleOpenEdit(user)}
                           >
                             <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-destructive/10 text-destructive"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </TableCell>
