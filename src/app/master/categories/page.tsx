@@ -77,12 +77,13 @@ export default function CategoriesPage() {
       const docRef = doc(db, "categories", formState.id);
       setDoc(docRef, categoryData, { merge: true })
         .then(() => {
-          toast({ title: "Success", description: "Category updated successfully." });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
           setIsSubmitting(false);
         })
         .catch(async (error) => {
           setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -93,12 +94,13 @@ export default function CategoriesPage() {
     } else {
       addDoc(collection(db, "categories"), categoryData)
         .then(() => {
-          toast({ title: "Success", description: "Category created successfully." });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
           setIsSubmitting(false);
         })
         .catch(async (error) => {
           setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "categories",
             operation: 'create',
@@ -117,6 +119,7 @@ export default function CategoriesPage() {
         toast({ title: "Success", description: "Category deleted successfully." });
       })
       .catch(async (error) => {
+        toast({ variant: "destructive", title: "Failed", description: "Failed to delete category." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -204,8 +207,14 @@ export default function CategoriesPage() {
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  {isEditing ? "Update Category" : "Save Category"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditing ? "Update Category" : "Save Category"
+                  )}
                 </Button>
               </DialogFooter>
             </form>

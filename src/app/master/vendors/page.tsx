@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -58,6 +59,7 @@ export default function VendorsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentVendor, setCurrentVendor] = useState<Partial<Vendor>>({
     name: "",
     category: "",
@@ -98,6 +100,7 @@ export default function VendorsPage() {
     e.preventDefault();
     if (!db || !currentVendor.name) return;
 
+    setIsSubmitting(true);
     const vendorData = {
       ...currentVendor,
       updatedAt: serverTimestamp(),
@@ -107,10 +110,13 @@ export default function VendorsPage() {
       const docRef = doc(db, "vendors", currentVendor.id);
       setDoc(docRef, vendorData, { merge: true })
         .then(() => {
-          toast({ title: "Vendor Updated", description: `${currentVendor.name} saved.` });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -121,10 +127,13 @@ export default function VendorsPage() {
     } else {
       addDoc(collection(db, "vendors"), vendorData)
         .then(() => {
-          toast({ title: "Vendor Registered", description: `${currentVendor.name} added.` });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "vendors",
             operation: 'create',
@@ -140,9 +149,10 @@ export default function VendorsPage() {
     const docRef = doc(db, "vendors", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Vendor Deleted", description: "Removed from master list." });
+        toast({ title: "Success", description: "Vendor deleted successfully." });
       })
       .catch(async (error) => {
+        toast({ variant: "destructive", title: "Failed", description: "Failed to delete vendor." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -272,7 +282,16 @@ export default function VendorsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{isEditing ? "Update Vendor" : "Save Vendor"}</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditing ? "Update Vendor" : "Save Vendor"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

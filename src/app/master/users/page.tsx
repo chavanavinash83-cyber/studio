@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -54,7 +55,7 @@ export default function UsersPage() {
 
   const usersQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "system_users"), orderBy("name", "asc"));
+    return query(collection(db, "users"), orderBy("name", "asc"));
   }, [db]);
 
   const { data: users, loading } = useCollection<UserProfile>(usersQuery);
@@ -62,6 +63,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<Partial<UserProfile>>({
     name: "",
     email: "",
@@ -90,19 +92,23 @@ export default function UsersPage() {
     e.preventDefault();
     if (!db || !currentUser.name || !currentUser.email) return;
 
+    setIsSubmitting(true);
     const userData = {
       ...currentUser,
       updatedAt: serverTimestamp(),
     };
 
     if (isEditing && currentUser.id) {
-      const docRef = doc(db, "system_users", currentUser.id);
+      const docRef = doc(db, "users", currentUser.id);
       setDoc(docRef, userData, { merge: true })
         .then(() => {
-          toast({ title: "User Updated", description: `${currentUser.name} saved.` });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -111,14 +117,17 @@ export default function UsersPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     } else {
-      addDoc(collection(db, "system_users"), userData)
+      addDoc(collection(db, "users"), userData)
         .then(() => {
-          toast({ title: "User Created", description: `${currentUser.name} added.` });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
-            path: "system_users",
+            path: "users",
             operation: 'create',
             requestResourceData: userData,
           });
@@ -129,12 +138,13 @@ export default function UsersPage() {
 
   const handleDelete = (id: string) => {
     if (!db) return;
-    const docRef = doc(db, "system_users", id);
+    const docRef = doc(db, "users", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "User Deleted", description: "Access removed." });
+        toast({ title: "Success", description: "User deleted successfully." });
       })
       .catch(async (error) => {
+        toast({ variant: "destructive", title: "Failed", description: "Failed to delete user." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -235,7 +245,16 @@ export default function UsersPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{isEditing ? "Update User" : "Save User"}</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditing ? "Update User" : "Save User"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

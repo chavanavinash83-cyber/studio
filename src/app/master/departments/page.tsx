@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -50,6 +51,7 @@ export default function DepartmentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentDept, setCurrentDept] = useState<Partial<Department>>({
     name: "",
     head: "",
@@ -78,6 +80,7 @@ export default function DepartmentsPage() {
     e.preventDefault();
     if (!db || !currentDept.name || !currentDept.costCenter) return;
 
+    setIsSubmitting(true);
     const deptData = {
       ...currentDept,
       updatedAt: serverTimestamp(),
@@ -87,10 +90,13 @@ export default function DepartmentsPage() {
       const docRef = doc(db, "departments", currentDept.id);
       setDoc(docRef, deptData, { merge: true })
         .then(() => {
-          toast({ title: "Department Updated", description: `${currentDept.name} saved.` });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -101,10 +107,13 @@ export default function DepartmentsPage() {
     } else {
       addDoc(collection(db, "departments"), deptData)
         .then(() => {
-          toast({ title: "Department Created", description: `${currentDept.name} added.` });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "departments",
             operation: 'create',
@@ -120,9 +129,10 @@ export default function DepartmentsPage() {
     const docRef = doc(db, "departments", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Department Deleted", description: "Removed from system." });
+        toast({ title: "Success", description: "Department deleted successfully." });
       })
       .catch(async (error) => {
+        toast({ variant: "destructive", title: "Failed", description: "Failed to delete department." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -194,7 +204,16 @@ export default function DepartmentsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{isEditing ? "Update Department" : "Save Department"}</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditing ? "Update Department" : "Save Department"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

@@ -90,12 +90,13 @@ export default function BranchesPage() {
       const docRef = doc(db, "branches", currentBranch.id);
       setDoc(docRef, branchData, { merge: true })
         .then(() => {
-          toast({ title: "Success", description: "Branch information updated." });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
           setIsSubmitting(false);
         })
         .catch(async (error) => {
           setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -106,12 +107,13 @@ export default function BranchesPage() {
     } else {
       addDoc(collection(db, "branches"), branchData)
         .then(() => {
-          toast({ title: "Success", description: "New branch registered successfully." });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsOpen(false);
           setIsSubmitting(false);
         })
         .catch(async (error) => {
           setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "branches",
             operation: 'create',
@@ -130,6 +132,7 @@ export default function BranchesPage() {
         toast({ title: "Success", description: "Branch deleted successfully." });
       })
       .catch(async (error) => {
+        toast({ variant: "destructive", title: "Failed", description: "Failed to delete branch." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -206,8 +209,14 @@ export default function BranchesPage() {
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  {isEditing ? "Update Branch" : "Save Branch"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditing ? "Update Branch" : "Save Branch"
+                  )}
                 </Button>
               </DialogFooter>
             </form>

@@ -52,7 +52,6 @@ export default function InventoryPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
 
-  // Dynamic Queries
   const assetsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, "assets"), orderBy("updatedAt", "desc"));
@@ -155,9 +154,10 @@ export default function InventoryPage() {
     const docRef = doc(db, "assets", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Success", description: "Asset deleted from inventory." });
+        toast({ title: "Success", description: "Asset deleted successfully." });
       })
       .catch(async (error) => {
+        toast({ variant: "destructive", title: "Failed", description: "Failed to delete asset." });
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
@@ -196,12 +196,13 @@ export default function InventoryPage() {
       const docRef = doc(db, "assets", currentAsset.id);
       setDoc(docRef, assetData, { merge: true })
         .then(() => {
-          toast({ title: "Success", description: "Asset record updated successfully." });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsDialogOpen(false);
           setIsSubmitting(false);
         })
         .catch(async (error) => {
           setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -212,12 +213,13 @@ export default function InventoryPage() {
     } else {
       addDoc(collection(db, "assets"), assetData)
         .then(() => {
-          toast({ title: "Success", description: "New asset registered successfully." });
+          toast({ title: "Success", description: "Saved successfully." });
           setIsDialogOpen(false);
           setIsSubmitting(false);
         })
         .catch(async (error) => {
           setIsSubmitting(false);
+          toast({ variant: "destructive", title: "Failed", description: "Failed to save data." });
           const permissionError = new FirestorePermissionError({
             path: "assets",
             operation: 'create',
@@ -531,8 +533,14 @@ export default function InventoryPage() {
               <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-6">
                 <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
                 <Button type="submit" className="bg-primary" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  {isEditing ? "Update Asset" : "Register Asset"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditing ? "Update Asset" : "Register Asset"
+                  )}
                 </Button>
               </DialogFooter>
             </form>
