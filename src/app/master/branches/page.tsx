@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,18 +19,14 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
-import { MapPin, Plus, Search, Building2, Trash2, Edit2 } from "lucide-react";
+import { MapPin, Plus, Search, Building2, Trash2, Edit2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-const INITIAL_BRANCHES = [
-  { id: "1", name: "Khodad", code: "KHO", type: "Administrative", location: "Pune, MH" },
-  { id: "2", name: "Manjarwadi", code: "MNJ", type: "Logistics", location: "Narayangaon, MH" },
-  { id: "3", name: "Sultanpur", code: "SLT", type: "IT Data Center", location: "Pune South, MH" },
-  { id: "4", name: "Ghodegaon", code: "GHO", type: "Manufacturing", location: "Ambegaon, MH" },
-];
+import { useFirestore, useCollection, errorEmitter } from "@/firebase";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { useToast } from "@/hooks/use-toast";
 
 interface Branch {
   id: string;
@@ -42,26 +37,34 @@ interface Branch {
 }
 
 export default function BranchesPage() {
-  const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
+  const { toast } = useToast();
+  const db = useFirestore();
+
+  const branchesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "branches"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: branches, loading } = useCollection<Branch>(branchesQuery);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState<Branch>({
-    id: "",
+  const [currentBranch, setCurrentBranch] = useState<Partial<Branch>>({
     name: "",
     code: "",
     type: "",
     location: "",
   });
 
-  const filteredBranches = branches.filter(b => 
+  const filteredBranches = (branches || []).filter(b => 
     b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     b.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setCurrentBranch({ id: "", name: "", code: "", type: "", location: "" });
+    setCurrentBranch({ name: "", code: "", type: "", location: "" });
     setIsOpen(true);
   };
 
@@ -73,22 +76,59 @@ export default function BranchesPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentBranch.name || !currentBranch.code) return;
+    if (!db || !currentBranch.name || !currentBranch.code) return;
 
-    if (isEditing) {
-      setBranches(branches.map(b => b.id === currentBranch.id ? currentBranch : b));
+    const branchData = {
+      ...currentBranch,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (isEditing && currentBranch.id) {
+      const docRef = doc(db, "branches", currentBranch.id);
+      setDoc(docRef, branchData, { merge: true })
+        .then(() => {
+          toast({ title: "Branch Updated", description: `${currentBranch.name} saved.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: branchData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     } else {
-      const newBranch = {
-        ...currentBranch,
-        id: Math.random().toString(36).substr(2, 9),
-      };
-      setBranches([...branches, newBranch]);
+      addDoc(collection(db, "branches"), branchData)
+        .then(() => {
+          toast({ title: "Branch Registered", description: `${currentBranch.name} added.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: "branches",
+            operation: 'create',
+            requestResourceData: branchData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
-    setIsOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setBranches(branches.filter(b => b.id !== id));
+    if (!db) return;
+    const docRef = doc(db, "branches", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Branch Deleted", description: "Removed from master list." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
@@ -178,54 +218,69 @@ export default function BranchesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Branch Details</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBranches.map((branch) => (
-                <TableRow key={branch.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-primary/60" />
-                      {branch.name}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-code">{branch.code}</Badge>
-                  </TableCell>
-                  <TableCell>{branch.type}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{branch.location}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 hover:bg-accent/20"
-                        onClick={() => handleOpenEdit(branch)}
-                      >
-                        <Edit2 className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(branch.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p>Fetching locations...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Branch Details</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredBranches.length > 0 ? (
+                  filteredBranches.map((branch) => (
+                    <TableRow key={branch.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-primary/60" />
+                          {branch.name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-code">{branch.code}</Badge>
+                      </TableCell>
+                      <TableCell>{branch.type}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{branch.location}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            onClick={() => handleOpenEdit(branch)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(branch.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow key="no-data">
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      No branches found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

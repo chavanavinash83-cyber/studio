@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,7 +14,8 @@ import {
   User, 
   MapPin, 
   FileText, 
-  Search 
+  Search,
+  Loader2 
 } from "lucide-react";
 import { 
   Dialog, 
@@ -28,6 +28,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFirestore, useCollection, errorEmitter } from "@/firebase";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { useToast } from "@/hooks/use-toast";
 
 interface Vendor {
   id: string;
@@ -40,56 +44,21 @@ interface Vendor {
   address: string;
 }
 
-const INITIAL_VENDORS: Vendor[] = [
-  { 
-    id: "1", 
-    name: "Global Construction Corp", 
-    category: "Infrastructure", 
-    contactPerson: "Amit Shah",
-    phone: "+91 98XXX XXX01", 
-    email: "info@gcc.com",
-    gstNumber: "27AAAAA0000A1Z5",
-    address: "Sector 5, Industrial Estate, Pune"
-  },
-  { 
-    id: "2", 
-    name: "Swift Motors", 
-    category: "Fleet", 
-    contactPerson: "Rajesh Kumar",
-    phone: "+91 98XXX XXX02", 
-    email: "service@swift.in",
-    gstNumber: "27BBBBB1111B1Z6",
-    address: "Auto Hub, Chakan, MH"
-  },
-  { 
-    id: "3", 
-    name: "Dell Enterprise", 
-    category: "IT Hardware", 
-    contactPerson: "Sarah Johnson",
-    phone: "+91 98XXX XXX03", 
-    email: "support@dell.com",
-    gstNumber: "29CCCCC2222C1Z7",
-    address: "Technopark, Bangalore"
-  },
-  { 
-    id: "4", 
-    name: "Precision Tools Ltd", 
-    category: "Machinery", 
-    contactPerson: "Vikas Patil",
-    phone: "+91 98XXX XXX04", 
-    email: "sales@prectools.com",
-    gstNumber: "27DDDDD3333D1Z8",
-    address: "MIDC Ambad, Nashik"
-  },
-];
-
 export default function VendorsPage() {
-  const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS);
+  const { toast } = useToast();
+  const db = useFirestore();
+
+  const vendorsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "vendors"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: vendors, loading } = useCollection<Vendor>(vendorsQuery);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentVendor, setCurrentVendor] = useState<Vendor>({
-    id: "",
+  const [currentVendor, setCurrentVendor] = useState<Partial<Vendor>>({
     name: "",
     category: "",
     contactPerson: "",
@@ -99,16 +68,15 @@ export default function VendorsPage() {
     address: "",
   });
 
-  const filteredVendors = vendors.filter(v => 
+  const filteredVendors = (vendors || []).filter(v => 
     v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    v.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.gstNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    v.contactPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    v.gstNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
     setIsEditing(false);
     setCurrentVendor({
-      id: "",
       name: "",
       category: "",
       contactPerson: "",
@@ -128,22 +96,59 @@ export default function VendorsPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentVendor.name) return;
+    if (!db || !currentVendor.name) return;
 
-    if (isEditing) {
-      setVendors(vendors.map(v => v.id === currentVendor.id ? currentVendor : v));
+    const vendorData = {
+      ...currentVendor,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (isEditing && currentVendor.id) {
+      const docRef = doc(db, "vendors", currentVendor.id);
+      setDoc(docRef, vendorData, { merge: true })
+        .then(() => {
+          toast({ title: "Vendor Updated", description: `${currentVendor.name} saved.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: vendorData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     } else {
-      const newVendor = {
-        ...currentVendor,
-        id: Math.random().toString(36).substr(2, 9),
-      };
-      setVendors([...vendors, newVendor]);
+      addDoc(collection(db, "vendors"), vendorData)
+        .then(() => {
+          toast({ title: "Vendor Registered", description: `${currentVendor.name} added.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: "vendors",
+            operation: 'create',
+            requestResourceData: vendorData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
-    setIsOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setVendors(vendors.filter(v => v.id !== id));
+    if (!db) return;
+    const docRef = doc(db, "vendors", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Vendor Deleted", description: "Removed from master list." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
@@ -287,82 +292,89 @@ export default function VendorsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="font-bold">Vendor & GST</TableHead>
-                <TableHead className="font-bold">Contact Person</TableHead>
-                <TableHead className="font-bold">Contact Details</TableHead>
-                <TableHead className="font-bold">Address</TableHead>
-                <TableHead className="text-right font-bold">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredVendors.length > 0 ? (
-                filteredVendors.map((vendor) => (
-                  <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm">{vendor.name}</span>
-                        <span className="text-[10px] text-muted-foreground uppercase">{vendor.category}</span>
-                        <span className="text-[10px] font-code bg-secondary/10 text-secondary w-fit px-1 mt-1 rounded">
-                          {vendor.gstNumber || "No GST"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        {vendor.contactPerson || "Not Assigned"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" /> {vendor.phone || "N/A"}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" /> {vendor.email || "N/A"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-start gap-1 max-w-[200px]">
-                        <MapPin className="h-3 w-3 mt-1 shrink-0 text-muted-foreground" />
-                        <span className="text-xs line-clamp-2">{vendor.address || "No Address"}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          onClick={() => handleOpenEdit(vendor)}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(vendor.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p>Fetching vendors...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="font-bold">Vendor & GST</TableHead>
+                  <TableHead className="font-bold">Contact Person</TableHead>
+                  <TableHead className="font-bold">Contact Details</TableHead>
+                  <TableHead className="font-bold">Address</TableHead>
+                  <TableHead className="text-right font-bold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredVendors.length > 0 ? (
+                  filteredVendors.map((vendor) => (
+                    <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm">{vendor.name}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{vendor.category}</span>
+                          <span className="text-[10px] font-code bg-secondary/10 text-secondary w-fit px-1 mt-1 rounded">
+                            {vendor.gstNumber || "No GST"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {vendor.contactPerson || "Not Assigned"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {vendor.phone || "N/A"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" /> {vendor.email || "N/A"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-start gap-1 max-w-[200px]">
+                          <MapPin className="h-3 w-3 mt-1 shrink-0 text-muted-foreground" />
+                          <span className="text-xs line-clamp-2">{vendor.address || "No Address"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            onClick={() => handleOpenEdit(vendor)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(vendor.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow key="no-data">
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      No vendors found.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    No vendors found matching your search.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

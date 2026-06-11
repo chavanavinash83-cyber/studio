@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -210,8 +209,7 @@ export default function InventoryPage() {
         });
     } else {
       addDoc(collection(db, "assets"), assetData)
-        .then((docRef) => {
-          setDoc(docRef, { id: docRef.id }, { merge: true });
+        .then(() => {
           toast({ title: "Asset Registered", description: `${currentAsset.name} added to inventory.` });
           setIsDialogOpen(false);
         })
@@ -686,7 +684,7 @@ export default function InventoryPage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
+                <TableRow key="no-assets">
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     No assets found matching your search.
                   </TableCell>

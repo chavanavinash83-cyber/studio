@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +13,8 @@ import {
   Trash2, 
   Edit2, 
   Mail, 
-  Search 
+  Search,
+  Loader2 
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -35,8 +35,12 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { useFirestore, useCollection, errorEmitter } from "@/firebase";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { useToast } from "@/hooks/use-toast";
 
-interface User {
+interface UserProfile {
   id: string;
   name: string;
   email: string;
@@ -44,38 +48,39 @@ interface User {
   access: string;
 }
 
-const INITIAL_USERS: User[] = [
-  { id: "1", name: "Admin User", email: "admin@sampatti.pro", role: "Super Admin", access: "All Branches" },
-  { id: "2", name: "Rahul Deshmukh", email: "rahul.d@kho.com", role: "Branch Manager", access: "Khodad" },
-  { id: "3", name: "Anita Kulkarni", email: "anita.k@mnj.com", role: "Auditor", access: "Manjarwadi" },
-  { id: "4", name: "Vikram Singh", email: "vikram@slt.com", role: "IT Admin", access: "Sultanpur" },
-];
-
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const { toast } = useToast();
+  const db = useFirestore();
+
+  const usersQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "system_users"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: users, loading } = useCollection<UserProfile>(usersQuery);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User>({
-    id: "",
+  const [currentUser, setCurrentUser] = useState<Partial<UserProfile>>({
     name: "",
     email: "",
-    role: "",
-    access: "",
+    role: "Branch Manager",
+    access: "All Branches",
   });
 
-  const filteredUsers = users.filter(u => 
+  const filteredUsers = (users || []).filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setCurrentUser({ id: "", name: "", email: "", role: "Branch Manager", access: "Khodad" });
+    setCurrentUser({ name: "", email: "", role: "Branch Manager", access: "All Branches" });
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (user: User) => {
+  const handleOpenEdit = (user: UserProfile) => {
     setIsEditing(true);
     setCurrentUser(user);
     setIsOpen(true);
@@ -83,22 +88,59 @@ export default function UsersPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser.name || !currentUser.email) return;
+    if (!db || !currentUser.name || !currentUser.email) return;
 
-    if (isEditing) {
-      setUsers(users.map(u => u.id === currentUser.id ? currentUser : u));
+    const userData = {
+      ...currentUser,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (isEditing && currentUser.id) {
+      const docRef = doc(db, "system_users", currentUser.id);
+      setDoc(docRef, userData, { merge: true })
+        .then(() => {
+          toast({ title: "User Updated", description: `${currentUser.name} saved.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: userData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     } else {
-      const newUser = {
-        ...currentUser,
-        id: Math.random().toString(36).substr(2, 9),
-      };
-      setUsers([...users, newUser]);
+      addDoc(collection(db, "system_users"), userData)
+        .then(() => {
+          toast({ title: "User Created", description: `${currentUser.name} added.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: "system_users",
+            operation: 'create',
+            requestResourceData: userData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
-    setIsOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setUsers(users.filter(u => u.id !== id));
+    if (!db) return;
+    const docRef = doc(db, "system_users", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "User Deleted", description: "Access removed." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
@@ -213,74 +255,81 @@ export default function UsersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="font-bold">User Details</TableHead>
-                <TableHead className="font-bold">Role</TableHead>
-                <TableHead className="font-bold">Branch Access</TableHead>
-                <TableHead className="text-right font-bold">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
-                  <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border border-primary/10 shadow-sm">
-                          <AvatarFallback className="bg-primary/5 text-primary font-bold">
-                            {user.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm">{user.name}</span>
-                          <span className="text-[11px] text-muted-foreground">{user.email}</span>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p>Fetching team...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="font-bold">User Details</TableHead>
+                  <TableHead className="font-bold">Role</TableHead>
+                  <TableHead className="font-bold">Branch Access</TableHead>
+                  <TableHead className="text-right font-bold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 border border-primary/10 shadow-sm">
+                            <AvatarFallback className="bg-primary/5 text-primary font-bold">
+                              {user.name?.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm">{user.name}</span>
+                            <span className="text-[11px] text-muted-foreground">{user.email}</span>
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === "Super Admin" ? "default" : "secondary"} className="gap-1">
-                        <Shield className="h-3 w-3" /> {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                        <MapPin className="h-3 w-3 text-accent" />
-                        {user.access}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          onClick={() => handleOpenEdit(user)}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.role === "Super Admin" ? "default" : "secondary"} className="gap-1">
+                          <Shield className="h-3 w-3" /> {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <MapPin className="h-3 w-3 text-accent" />
+                          {user.access}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            onClick={() => handleOpenEdit(user)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow key="no-data">
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      No users found.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                    No users found matching your search.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,7 +11,8 @@ import {
   Edit2, 
   Search, 
   UserCircle, 
-  Hash 
+  Hash,
+  Loader2
 } from "lucide-react";
 import { 
   Dialog, 
@@ -20,19 +20,14 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const INITIAL_DEPARTMENTS = [
-  { id: "1", name: "Administration", head: "John Doe", costCenter: "CC-001" },
-  { id: "2", name: "Logistics", head: "Jane Smith", costCenter: "CC-012" },
-  { id: "3", name: "IT Operations", head: "Robert Wilson", costCenter: "CC-IT" },
-  { id: "4", name: "Manufacturing", head: "David Brown", costCenter: "CC-MFG" },
-  { id: "5", name: "Real Estate", head: "Sarah Miller", costCenter: "CC-RE" },
-];
+import { useFirestore, useCollection, errorEmitter } from "@/firebase";
+import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { useToast } from "@/hooks/use-toast";
 
 interface Department {
   id: string;
@@ -42,26 +37,34 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
+  const { toast } = useToast();
+  const db = useFirestore();
+
+  const departmentsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "departments"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: departments, loading } = useCollection<Department>(departmentsQuery);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentDept, setCurrentDept] = useState<Department>({
-    id: "",
+  const [currentDept, setCurrentDept] = useState<Partial<Department>>({
     name: "",
     head: "",
     costCenter: "",
   });
 
-  const filteredDepartments = departments.filter(d => 
+  const filteredDepartments = (departments || []).filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    d.head.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.head?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.costCenter.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setCurrentDept({ id: "", name: "", head: "", costCenter: "" });
+    setCurrentDept({ name: "", head: "", costCenter: "" });
     setIsOpen(true);
   };
 
@@ -73,22 +76,59 @@ export default function DepartmentsPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentDept.name || !currentDept.costCenter) return;
+    if (!db || !currentDept.name || !currentDept.costCenter) return;
 
-    if (isEditing) {
-      setDepartments(departments.map(d => d.id === currentDept.id ? currentDept : d));
+    const deptData = {
+      ...currentDept,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (isEditing && currentDept.id) {
+      const docRef = doc(db, "departments", currentDept.id);
+      setDoc(docRef, deptData, { merge: true })
+        .then(() => {
+          toast({ title: "Department Updated", description: `${currentDept.name} saved.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: deptData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     } else {
-      const newDept = {
-        ...currentDept,
-        id: Math.random().toString(36).substr(2, 9),
-      };
-      setDepartments([...departments, newDept]);
+      addDoc(collection(db, "departments"), deptData)
+        .then(() => {
+          toast({ title: "Department Created", description: `${currentDept.name} added.` });
+          setIsOpen(false);
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: "departments",
+            operation: 'create',
+            requestResourceData: deptData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
-    setIsOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setDepartments(departments.filter(d => d.id !== id));
+    if (!db) return;
+    const docRef = doc(db, "departments", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Department Deleted", description: "Removed from system." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
@@ -174,67 +214,74 @@ export default function DepartmentsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="font-bold">Dept Name</TableHead>
-                <TableHead className="font-bold">Dept Head</TableHead>
-                <TableHead className="font-bold">Cost Center</TableHead>
-                <TableHead className="text-right font-bold">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDepartments.length > 0 ? (
-                filteredDepartments.map((dept) => (
-                  <TableRow key={dept.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-primary/60" />
-                        {dept.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <UserCircle className="h-4 w-4 text-muted-foreground" />
-                        {dept.head || "Not Assigned"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-code text-xs bg-secondary/10 text-secondary px-2 py-1 rounded">
-                        {dept.costCenter}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          onClick={() => handleOpenEdit(dept)}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(dept.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p>Fetching units...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="font-bold">Dept Name</TableHead>
+                  <TableHead className="font-bold">Dept Head</TableHead>
+                  <TableHead className="font-bold">Cost Center</TableHead>
+                  <TableHead className="text-right font-bold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDepartments.length > 0 ? (
+                  filteredDepartments.map((dept) => (
+                    <TableRow key={dept.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="h-4 w-4 text-primary/60" />
+                          {dept.name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <UserCircle className="h-4 w-4 text-muted-foreground" />
+                          {dept.head || "Not Assigned"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-code text-xs bg-secondary/10 text-secondary px-2 py-1 rounded">
+                          {dept.costCenter}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            onClick={() => handleOpenEdit(dept)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(dept.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow key="no-data">
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      No departments found.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                    No departments found matching your search.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -88,8 +87,7 @@ export default function CategoriesPage() {
         });
     } else {
       addDoc(collection(db, "categories"), categoryData)
-        .then((docRef) => {
-          setDoc(docRef, { id: docRef.id }, { merge: true });
+        .then(() => {
           toast({ title: "Category Created", description: `${formState.name} added to master list.` });
           setIsOpen(false);
         })
@@ -224,7 +222,7 @@ export default function CategoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.length > 0 ? (
+                {categories && categories.length > 0 ? (
                   categories.map((cat) => (
                     <TableRow key={cat.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-bold">{cat.name}</TableCell>
@@ -261,7 +259,7 @@ export default function CategoriesPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
+                  <TableRow key="no-data">
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No categories defined yet.
                     </TableCell>

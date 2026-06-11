@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Query, onSnapshot, DocumentData, QuerySnapshot } from 'firebase/firestore';
+import { Query, onSnapshot, DocumentData } from 'firebase/firestore';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
@@ -19,7 +19,10 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
     const unsubscribe = onSnapshot(
       query,
       (snapshot) => {
-        const docs = snapshot.docs.map((doc) => doc.data());
+        const docs = snapshot.docs.map((doc) => ({
+          ...(doc.data() as any),
+          id: doc.id,
+        })) as T[];
         setData(docs);
         setLoading(false);
       },
