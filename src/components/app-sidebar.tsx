@@ -128,7 +128,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/40 font-medium px-4 py-2 uppercase text-[10px] tracking-widest">
-            Main Management
+            MENU
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -158,7 +158,7 @@ export function AppSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/40 font-medium px-4 py-2 uppercase text-[10px] tracking-widest">
-            Configuration
+            MASTERS
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
