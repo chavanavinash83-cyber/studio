@@ -39,7 +39,7 @@ export default function LoginPage() {
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name });
-        toast({ title: "Account created", description: "Your SampattiPro account is ready." });
+        toast({ title: "Account created", description: "Your AMBIKA AMS account is ready." });
       }
       router.push('/');
     } catch (error: any) {
@@ -63,7 +63,7 @@ export default function LoginPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-headline tracking-tight">
-            {isLogin ? 'SampattiPro Login' : 'Create Account'}
+            {isLogin ? 'AMBIKA AMS Login' : 'Create Account'}
           </CardTitle>
           <CardDescription>
             {isLogin 
@@ -90,7 +90,7 @@ export default function LoginPage() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="admin@sampatti.pro" 
+                placeholder="admin@ambika.ams" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required 

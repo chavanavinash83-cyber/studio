@@ -163,7 +163,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Operations Dashboard</h1>
-          <p className="text-muted-foreground">Real-time overview of SampattiPro asset health across all branches.</p>
+          <p className="text-muted-foreground">Real-time overview of AMBIKA AMS asset health across all branches.</p>
         </div>
         
         {(!assets || assets.length === 0) && (

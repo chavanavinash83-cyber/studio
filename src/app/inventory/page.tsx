@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -255,7 +256,7 @@ export default function InventoryPage() {
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit Asset" : "Register New Asset"}</DialogTitle>
               <DialogDescription>
-                Data is saved securely to the SampattiPro cloud.
+                Data is saved securely to the AMBIKA AMS cloud.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSave} className="space-y-6 py-4">
@@ -659,7 +660,7 @@ export default function InventoryPage() {
                                   <rect x="10" y="10" width="10" height="10" fill="white" />
                                   <rect x="80" y="10" width="10" height="10" fill="white" />
                                   <rect x="10" y="80" width="10" height="10" fill="white" />
-                                  <path d="M40 0h20v10H40zM40 20h10v10H40zM60 20h10v10H60zM30 40h10v10H30zM50 40h20v10H50zM80 40h20v10H80zM0 60h10v10H0zM20 60h10v10H20zM40 60h30v10H40zM90 60h10v10H90zM30 70h10v10H30zM50 70h10v10H50zM70 70h10v10H70zM40 80h10v10H40zM60 80h10v10H60z" fill="currentColor" />
+                                  <path d="M40 0h20v10H40zM40 20h10v10H40zM60 20h10v10H60zM30 40h10v10H30zM50 40h20v10H50zM80 40h20v10H80zM0 60h10v10H0zM20 60h10v10H20zM40 60h30v10H40zM90 60h10v10H90zM30 70h10v10H30zM50 70h10v10H50z" fill="currentColor" />
                                 </svg>
                               </div>
                               <div className="text-center">

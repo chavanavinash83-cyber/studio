@@ -42,7 +42,7 @@ export default function AuditPage() {
             <ShieldCheck className="h-8 w-8 text-accent" />
             AI Audit Analyst
           </h1>
-          <p className="text-muted-foreground">Reasoning-powered engine to detect unusual wear and branch discrepancies.</p>
+          <p className="text-muted-foreground">Reasoning-powered engine for AMBIKA AMS to detect unusual wear and branch discrepancies.</p>
         </div>
         <Button 
           onClick={runAnalysis} 

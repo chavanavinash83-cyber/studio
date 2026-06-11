@@ -211,7 +211,7 @@ export default function ReportsPage() {
         fileName += ".csv";
         mimeType = "text/csv";
       } else {
-        content = `SAMPATTIPRO - ${reportName.toUpperCase()}\n`;
+        content = `AMBIKA AMS - ${reportName.toUpperCase()}\n`;
         content += `Filters: Branch: ${branchFilter}, Category: ${categoryFilter}\n`;
         content += `Generated on: ${new Date().toLocaleString()}\n`;
         content += `========================================================================================================\n\n`;

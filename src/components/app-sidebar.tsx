@@ -117,7 +117,7 @@ export function AppSidebar() {
           </div>
           <div>
             <h1 className="font-headline text-xl font-bold tracking-tight text-white">
-              SampattiPro
+              AMBIKA AMS
             </h1>
             <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">
               Enterprise Assets

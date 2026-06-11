@@ -3,7 +3,7 @@
   "entities": {
     "User": {
       "title": "User Profile",
-      "description": "Extended user information for SampattiPro access control.",
+      "description": "Extended user information for AMBIKA AMS access control.",
       "type": "object",
       "properties": {
         "uid": {
