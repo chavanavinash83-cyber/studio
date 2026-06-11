@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MOCK_ASSETS } from "../lib/mock-data";
 import { Asset, AssetCategory, AssetStatus, BranchLocation } from "../lib/types";
 import { 
@@ -22,17 +22,18 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { QrCode, Search, Filter, ArrowRight, Plus, Edit2, Trash2, CalendarIcon } from "lucide-react";
+import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { addMonths, format, parseISO, isValid } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function InventoryPage() {
   const [assets, setAssets] = useState<Asset[]>(MOCK_ASSETS);
@@ -43,20 +44,38 @@ export default function InventoryPage() {
   
   const [currentAsset, setCurrentAsset] = useState<Partial<Asset>>({
     name: "",
+    model: "",
     serialNumber: "",
     category: "IT Equipment",
     location: "Khodad",
     department: "Administration",
     status: "Active",
-    purchaseDate: new Date().toISOString().split('T')[0],
+    purchaseDate: format(new Date(), 'yyyy-MM-dd'),
+    installationDate: format(new Date(), 'yyyy-MM-dd'),
     purchaseValue: 0,
     currentBookValue: 0,
     depreciationRate: 15,
+    warrantyPeriodMonths: 12,
+    warrantyExpiry: "",
+    vendorName: "",
   });
 
+  // Automatically calculate warranty expiry whenever purchase date or period changes
+  useEffect(() => {
+    if (currentAsset.purchaseDate && currentAsset.warrantyPeriodMonths !== undefined) {
+      const pDate = parseISO(currentAsset.purchaseDate);
+      if (isValid(pDate)) {
+        const expiryDate = addMonths(pDate, currentAsset.warrantyPeriodMonths);
+        setCurrentAsset(prev => ({ ...prev, warrantyExpiry: format(expiryDate, 'yyyy-MM-dd') }));
+      }
+    }
+  }, [currentAsset.purchaseDate, currentAsset.warrantyPeriodMonths]);
+
   const filteredAssets = assets.filter(asset => {
-    const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.model?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -65,15 +84,20 @@ export default function InventoryPage() {
     setIsEditing(false);
     setCurrentAsset({
       name: "",
+      model: "",
       serialNumber: "",
       category: "IT Equipment",
       location: "Khodad",
       department: "Administration",
       status: "Active",
-      purchaseDate: new Date().toISOString().split('T')[0],
+      purchaseDate: format(new Date(), 'yyyy-MM-dd'),
+      installationDate: format(new Date(), 'yyyy-MM-dd'),
       purchaseValue: 0,
       currentBookValue: 0,
       depreciationRate: 15,
+      warrantyPeriodMonths: 12,
+      warrantyExpiry: "",
+      vendorName: "",
     });
     setIsDialogOpen(true);
   };
@@ -114,6 +138,15 @@ export default function InventoryPage() {
     }
   };
 
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'Buildings': return <Building2 className="h-4 w-4" />;
+      case 'Vehicles': return <Truck className="h-4 w-4" />;
+      case 'IT Equipment': return <HardDrive className="h-4 w-4" />;
+      default: return <Package className="h-4 w-4" />;
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -126,16 +159,16 @@ export default function InventoryPage() {
           <Button onClick={handleOpenAdd} className="bg-accent text-white hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" /> Add New Asset
           </Button>
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit Asset" : "Register New Asset"}</DialogTitle>
               <DialogDescription>
-                Enter detailed specifications and financial data for the asset.
+                Enter detailed specifications, procurement data, and warranty information.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSave} className="space-y-6 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 space-y-2">
                   <Label htmlFor="name">Asset Name</Label>
                   <Input 
                     id="name" 
@@ -145,6 +178,18 @@ export default function InventoryPage() {
                     required 
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="model">Model / Variant</Label>
+                  <Input 
+                    id="model" 
+                    value={currentAsset.model} 
+                    onChange={e => setCurrentAsset({...currentAsset, model: e.target.value})}
+                    placeholder="e.g. 2024 Edition" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="serial">Serial Number / Tag</Label>
                   <Input 
@@ -156,9 +201,6 @@ export default function InventoryPage() {
                     required 
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Category</Label>
                   <Select 
@@ -196,7 +238,7 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Branch Location</Label>
                   <Select 
@@ -223,38 +265,103 @@ export default function InventoryPage() {
                     placeholder="e.g. IT Operations" 
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vendor">Vendor / Supplier</Label>
+                  <Input 
+                    id="vendor" 
+                    value={currentAsset.vendorName} 
+                    onChange={e => setCurrentAsset({...currentAsset, vendorName: e.target.value})}
+                    placeholder="e.g. Dell Enterprise" 
+                  />
+                </div>
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="text-sm font-bold mb-4 flex items-center gap-2">
-                  Financial Details & Depreciation
+                <h4 className="text-sm font-bold mb-4 flex items-center gap-2 text-primary">
+                  <CalendarIcon className="h-4 w-4" />
+                  Procurement & Warranty
                 </h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="pdate">Purchase Date</Label>
+                    <Input 
+                      id="pdate" 
+                      type="date" 
+                      value={currentAsset.purchaseDate} 
+                      onChange={e => setCurrentAsset({...currentAsset, purchaseDate: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="idate">Installation Date</Label>
+                    <Input 
+                      id="idate" 
+                      type="date" 
+                      value={currentAsset.installationDate} 
+                      onChange={e => setCurrentAsset({...currentAsset, installationDate: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wperiod">Warranty (Months)</Label>
+                    <Input 
+                      id="wperiod" 
+                      type="number" 
+                      value={currentAsset.warrantyPeriodMonths} 
+                      onChange={e => setCurrentAsset({...currentAsset, warrantyPeriodMonths: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wexpiry">Warranty Expiry</Label>
                     <div className="relative">
-                      <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        id="pdate" 
+                        id="wexpiry" 
                         type="date" 
-                        className="pl-10"
-                        value={currentAsset.purchaseDate} 
-                        onChange={e => setCurrentAsset({...currentAsset, purchaseDate: e.target.value})}
+                        readOnly 
+                        className="bg-muted cursor-not-allowed"
+                        value={currentAsset.warrantyExpiry} 
                       />
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>Calculated from Purchase Date</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-bold mb-4 flex items-center gap-2 text-primary">
+                  <FileText className="h-4 w-4" />
+                  Assets & Documents
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Asset Photo</Label>
+                    <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-pointer">
+                      <ImageIcon className="h-8 w-8 mb-2" />
+                      <span className="text-xs">Click to upload photo</span>
+                      <Input type="file" className="hidden" accept="image/*" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="deprate">Depreciation Rate (%)</Label>
-                    <Input 
-                      id="deprate" 
-                      type="number" 
-                      step="0.01"
-                      value={currentAsset.depreciationRate} 
-                      onChange={e => setCurrentAsset({...currentAsset, depreciationRate: parseFloat(e.target.value)})}
-                    />
+                    <Label>Invoice Document</Label>
+                    <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-pointer">
+                      <FileText className="h-8 w-8 mb-2" />
+                      <span className="text-xs">Click to upload PDF/Image</span>
+                      <Input type="file" className="hidden" accept=".pdf,image/*" />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-bold mb-4 flex items-center gap-2 text-primary">
+                  Financial Details
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="pval">Purchase Value (₹)</Label>
                     <Input 
@@ -273,10 +380,20 @@ export default function InventoryPage() {
                       onChange={e => setCurrentAsset({...currentAsset, currentBookValue: parseFloat(e.target.value)})}
                     />
                   </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="deprate">Depreciation Rate (%)</Label>
+                    <Input 
+                      id="deprate" 
+                      type="number" 
+                      step="0.01"
+                      value={currentAsset.depreciationRate} 
+                      onChange={e => setCurrentAsset({...currentAsset, depreciationRate: parseFloat(e.target.value)})}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-6">
                 <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" className="bg-primary">{isEditing ? "Update Asset" : "Register Asset"}</Button>
               </DialogFooter>
@@ -289,7 +406,7 @@ export default function InventoryPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search assets or serial numbers..." 
+            placeholder="Search by name, model or serial..." 
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -317,12 +434,13 @@ export default function InventoryPage() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead className="font-bold">Asset Details</TableHead>
+              <TableHead className="font-bold">Asset Info</TableHead>
+              <TableHead className="font-bold">Branch & Dept</TableHead>
               <TableHead className="font-bold">Category</TableHead>
-              <TableHead className="font-bold">Location</TableHead>
               <TableHead className="font-bold">Status</TableHead>
-              <TableHead className="font-bold text-right">Book Value (₹)</TableHead>
-              <TableHead className="w-[150px] text-right">Actions</TableHead>
+              <TableHead className="font-bold text-right">Procurement Date</TableHead>
+              <TableHead className="font-bold text-right">Warranty Expiry</TableHead>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -331,23 +449,45 @@ export default function InventoryPage() {
                 <TableRow key={asset.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <div className="flex flex-col">
-                      <span className="font-medium text-sm">{asset.name}</span>
-                      <span className="text-xs font-code text-muted-foreground uppercase">{asset.serialNumber}</span>
+                      <span className="font-bold text-sm leading-tight">{asset.name}</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">{asset.model || "No Model"}</span>
+                      <span className="text-[10px] font-code text-primary uppercase mt-1 tracking-wider">{asset.serialNumber}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs px-2 py-1 rounded bg-secondary/10 text-secondary font-medium">{asset.category}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Building2 className="h-3 w-3 text-accent" />
+                        {asset.location}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground uppercase">{asset.department}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-medium">{asset.location}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded bg-secondary/10 text-secondary">
+                        {getCategoryIcon(asset.category)}
+                      </div>
+                      <span className="text-[11px] font-medium">{asset.category}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     {getStatusBadge(asset.status)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {asset.currentBookValue.toLocaleString()}
+                  <TableCell className="text-right">
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs font-medium">{asset.purchaseDate}</span>
+                      <span className="text-[10px] text-muted-foreground">Inst: {asset.installationDate}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className={`text-xs font-bold ${
+                      asset.warrantyExpiry && new Date(asset.warrantyExpiry) < new Date() 
+                        ? "text-destructive" 
+                        : "text-green-600"
+                    }`}>
+                      {asset.warrantyExpiry || "N/A"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
@@ -403,7 +543,7 @@ export default function InventoryPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   No assets found matching your search.
                 </TableCell>
               </TableRow>

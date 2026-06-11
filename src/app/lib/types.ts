@@ -9,17 +9,22 @@ export interface Asset {
   id: string;
   serialNumber: string;
   name: string;
+  model?: string;
   category: AssetCategory;
   purchaseDate: string;
+  installationDate?: string;
   purchaseValue: number;
   currentBookValue: number;
   location: BranchLocation;
   department: string;
   status: AssetStatus;
+  warrantyPeriodMonths?: number;
   warrantyExpiry?: string;
   vendorName?: string;
   lastAuditDate?: string;
   depreciationRate: number; // 5, 10, 15, or 33.33
+  assetPhotoUrl?: string;
+  invoiceUrl?: string;
 }
 
 export interface MaintenanceRecord {
