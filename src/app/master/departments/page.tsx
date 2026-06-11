@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { 
   Briefcase, 
   Plus, 
-  Trash2, 
   Edit2, 
   Search, 
   UserCircle, 
@@ -26,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 
@@ -109,25 +108,9 @@ export default function DepartmentsPage() {
         });
     }
 
-    // Optimistic feedback
     toast({ title: "Success", description: "Saved successfully." });
     setIsOpen(false);
     setIsSubmitting(false);
-  };
-
-  const handleDelete = (id: string) => {
-    if (!db) return;
-    const docRef = doc(db, "departments", id);
-    deleteDoc(docRef)
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-    
-    toast({ title: "Success", description: "Department deleted successfully." });
   };
 
   return (
@@ -267,14 +250,6 @@ export default function DepartmentsPage() {
                             onClick={() => handleOpenEdit(dept)}
                           >
                             <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(dept.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>

@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tags, Plus, Trash2, Edit2, Calculator, Loader2 } from "lucide-react";
+import { Tags, Plus, Edit2, Calculator, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
@@ -25,7 +25,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { MasterCategory } from "@/app/lib/types";
@@ -101,21 +101,6 @@ export default function CategoriesPage() {
     setIsOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (!db) return;
-    const docRef = doc(db, "categories", id);
-    deleteDoc(docRef)
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-    
-    toast({ title: "Success", description: "Saved successfully." });
-  };
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -135,7 +120,7 @@ export default function CategoriesPage() {
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit Asset Category" : "Add Asset Category"}</DialogTitle>
               <DialogDescription>
-                Data is saved securely to the SampattiPro cloud.
+                Data is saved securely to the AMBIKA AMS cloud.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveCategory}>
@@ -262,14 +247,6 @@ export default function CategoriesPage() {
                             onClick={() => handleOpenEdit(cat)}
                           >
                             <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(cat.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>

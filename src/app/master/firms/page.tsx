@@ -23,9 +23,9 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
-import { Landmark, Plus, Search, Building2, Trash2, Edit2, Loader2, Phone, Mail, User, FileText, MapPin } from "lucide-react";
+import { Landmark, Plus, Search, Building2, Edit2, Loader2, Phone, Mail, User, MapPin } from "lucide-react";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { Firm } from "@/app/lib/types";
@@ -108,21 +108,6 @@ export default function FirmsPage() {
     toast({ title: "Success", description: "Firm details saved successfully." });
     setIsOpen(false);
     setIsSubmitting(false);
-  };
-
-  const handleDelete = (id: string) => {
-    if (!db) return;
-    const docRef = doc(db, "firms", id);
-    deleteDoc(docRef)
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-    
-    toast({ title: "Success", description: "Firm deleted successfully." });
   };
 
   return (
@@ -316,14 +301,6 @@ export default function FirmsPage() {
                             onClick={() => handleOpenEdit(firm)}
                           >
                             <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(firm.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
