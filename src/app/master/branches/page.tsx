@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -40,16 +41,10 @@ export default function BranchesPage() {
   const { toast } = useToast();
   const db = useFirestore();
 
-  const branchesQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collection(db, "branches"), orderBy("name", "asc"));
-  }, [db]);
-
-  const { data: branches, loading } = useCollection<Branch>(branchesQuery);
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<Partial<Branch>>({
     name: "",
     code: "",
@@ -57,9 +52,16 @@ export default function BranchesPage() {
     location: "",
   });
 
+  const branchesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "branches"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: branches, loading } = useCollection<Branch>(branchesQuery);
+
   const filteredBranches = (branches || []).filter(b => 
-    b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    b.code.toLowerCase().includes(searchTerm.toLowerCase())
+    b.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    b.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
@@ -78,6 +80,7 @@ export default function BranchesPage() {
     e.preventDefault();
     if (!db || !currentBranch.name || !currentBranch.code) return;
 
+    setIsSubmitting(true);
     const branchData = {
       ...currentBranch,
       updatedAt: serverTimestamp(),
@@ -87,10 +90,12 @@ export default function BranchesPage() {
       const docRef = doc(db, "branches", currentBranch.id);
       setDoc(docRef, branchData, { merge: true })
         .then(() => {
-          toast({ title: "Branch Updated", description: `${currentBranch.name} saved.` });
+          toast({ title: "Success", description: "Branch information updated." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -101,10 +106,12 @@ export default function BranchesPage() {
     } else {
       addDoc(collection(db, "branches"), branchData)
         .then(() => {
-          toast({ title: "Branch Registered", description: `${currentBranch.name} added.` });
+          toast({ title: "Success", description: "New branch registered successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
           const permissionError = new FirestorePermissionError({
             path: "branches",
             operation: 'create',
@@ -120,7 +127,7 @@ export default function BranchesPage() {
     const docRef = doc(db, "branches", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Branch Deleted", description: "Removed from master list." });
+        toast({ title: "Success", description: "Branch deleted successfully." });
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
@@ -198,7 +205,10 @@ export default function BranchesPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{isEditing ? "Update Branch" : "Save Branch"}</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isEditing ? "Update Branch" : "Save Branch"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -272,7 +282,7 @@ export default function BranchesPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow key="no-data">
+                  <TableRow key="no-data-branches">
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No branches found.
                     </TableCell>

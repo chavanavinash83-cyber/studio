@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -42,10 +43,19 @@ export default function InventoryPage() {
   const { toast } = useToast();
   const db = useFirestore();
   
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+
   // Dynamic Queries
   const assetsQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "assets"), orderBy("name", "asc"));
+    return query(collection(db, "assets"), orderBy("updatedAt", "desc"));
   }, [db]);
 
   const categoriesQuery = useMemo(() => {
@@ -61,14 +71,6 @@ export default function InventoryPage() {
   const { data: assets, loading } = useCollection<Asset>(assetsQuery);
   const { data: categories } = useCollection<MasterCategory>(categoriesQuery);
   const { data: branches } = useCollection<any>(branchesQuery);
-  
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const invoiceInputRef = useRef<HTMLInputElement>(null);
 
   const [currentAsset, setCurrentAsset] = useState<Partial<Asset>>({
     name: "",
@@ -100,7 +102,6 @@ export default function InventoryPage() {
     }
   }, [currentAsset.installationDate, currentAsset.warrantyPeriodMonths]);
 
-  // Update depreciation rate when category changes
   useEffect(() => {
     if (currentAsset.category && categories) {
       const cat = categories.find(c => c.name === currentAsset.category);
@@ -112,8 +113,8 @@ export default function InventoryPage() {
 
   const filteredAssets = (assets || []).filter(asset => {
     const matchesSearch = 
-      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      asset.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.model?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
     return matchesSearch && matchesCategory;
@@ -154,7 +155,7 @@ export default function InventoryPage() {
     const docRef = doc(db, "assets", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Asset Deleted", description: "Removed from system." });
+        toast({ title: "Success", description: "Asset deleted from inventory." });
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
@@ -173,10 +174,8 @@ export default function InventoryPage() {
         const base64String = reader.result as string;
         if (type === 'photo') {
           setCurrentAsset(prev => ({ ...prev, assetPhotoUrl: base64String }));
-          toast({ title: "Photo Attached", description: file.name });
         } else {
           setCurrentAsset(prev => ({ ...prev, invoiceUrl: base64String }));
-          toast({ title: "Invoice Attached", description: file.name });
         }
       };
       reader.readAsDataURL(file);
@@ -187,6 +186,7 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!db || !currentAsset.name || !currentAsset.serialNumber) return;
 
+    setIsSubmitting(true);
     const assetData = {
       ...currentAsset,
       updatedAt: serverTimestamp(),
@@ -196,10 +196,12 @@ export default function InventoryPage() {
       const docRef = doc(db, "assets", currentAsset.id);
       setDoc(docRef, assetData, { merge: true })
         .then(() => {
-          toast({ title: "Asset Updated", description: `${currentAsset.name} has been updated.` });
+          toast({ title: "Success", description: "Asset record updated successfully." });
           setIsDialogOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -210,10 +212,12 @@ export default function InventoryPage() {
     } else {
       addDoc(collection(db, "assets"), assetData)
         .then(() => {
-          toast({ title: "Asset Registered", description: `${currentAsset.name} added to inventory.` });
+          toast({ title: "Success", description: "New asset registered successfully." });
           setIsDialogOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
           const permissionError = new FirestorePermissionError({
             path: "assets",
             operation: 'create',
@@ -310,7 +314,6 @@ export default function InventoryPage() {
                       {categories?.map(cat => (
                         <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                       ))}
-                      {!categories?.length && <SelectItem value="IT Equipment">IT Equipment</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -347,12 +350,6 @@ export default function InventoryPage() {
                       {branches?.map(b => (
                         <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                       ))}
-                      {!branches?.length && (
-                        <>
-                          <SelectItem value="Khodad">Khodad</SelectItem>
-                          <SelectItem value="Manjarwadi">Manjarwadi</SelectItem>
-                        </>
-                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -532,8 +529,11 @@ export default function InventoryPage() {
               </div>
 
               <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-6">
-                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" className="bg-primary">{isEditing ? "Update Asset" : "Register Asset"}</Button>
+                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" className="bg-primary" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isEditing ? "Update Asset" : "Register Asset"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

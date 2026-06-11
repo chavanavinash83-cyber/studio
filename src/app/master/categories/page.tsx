@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -33,21 +34,22 @@ export default function CategoriesPage() {
   const { toast } = useToast();
   const db = useFirestore();
   
-  const categoriesQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collection(db, "categories"), orderBy("name", "asc"));
-  }, [db]);
-
-  const { data: categories, loading } = useCollection<MasterCategory>(categoriesQuery);
-  
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formState, setFormState] = useState<Partial<MasterCategory>>({ 
     name: "", 
     rate: 15, 
     life: "", 
     method: "WDV" 
   });
+
+  const categoriesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "categories"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: categories, loading } = useCollection<MasterCategory>(categoriesQuery);
 
   const handleOpenAdd = () => {
     setIsEditing(false);
@@ -65,6 +67,7 @@ export default function CategoriesPage() {
     e.preventDefault();
     if (!db || !formState.name) return;
 
+    setIsSubmitting(true);
     const categoryData = {
       ...formState,
       updatedAt: serverTimestamp(),
@@ -74,10 +77,12 @@ export default function CategoriesPage() {
       const docRef = doc(db, "categories", formState.id);
       setDoc(docRef, categoryData, { merge: true })
         .then(() => {
-          toast({ title: "Category Updated", description: `${formState.name} settings saved.` });
+          toast({ title: "Success", description: "Category updated successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
@@ -88,10 +93,12 @@ export default function CategoriesPage() {
     } else {
       addDoc(collection(db, "categories"), categoryData)
         .then(() => {
-          toast({ title: "Category Created", description: `${formState.name} added to master list.` });
+          toast({ title: "Success", description: "Category created successfully." });
           setIsOpen(false);
+          setIsSubmitting(false);
         })
         .catch(async (error) => {
+          setIsSubmitting(false);
           const permissionError = new FirestorePermissionError({
             path: "categories",
             operation: 'create',
@@ -107,7 +114,7 @@ export default function CategoriesPage() {
     const docRef = doc(db, "categories", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "Category Deleted", description: "Removed from system." });
+        toast({ title: "Success", description: "Category deleted successfully." });
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
@@ -196,7 +203,10 @@ export default function CategoriesPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{isEditing ? "Update Category" : "Save Category"}</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isEditing ? "Update Category" : "Save Category"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -259,7 +269,7 @@ export default function CategoriesPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow key="no-data">
+                  <TableRow key="no-data-categories">
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No categories defined yet.
                     </TableCell>
