@@ -18,7 +18,8 @@ import {
   FileSpreadsheet,
   FileDown,
   X,
-  Loader2
+  Loader2,
+  Table as TableIcon
 } from "lucide-react";
 import { 
   Bar, 
@@ -52,6 +53,14 @@ import {
   CardTitle, 
   CardDescription 
 } from "@/components/ui/card";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useCollection } from "@/firebase";
@@ -88,6 +97,26 @@ export default function ReportsPage() {
       return matchesBranch && matchesCategory;
     });
   }, [assets, branchFilter, categoryFilter]);
+
+  // Matrix Calculation: Depreciation Summary by Branch (Columns) and Category (Rows)
+  const depreciationMatrix = useMemo(() => {
+    const branches = Array.from(new Set(filteredAssets.map(a => a.location))).sort();
+    const categories = Array.from(new Set(filteredAssets.map(a => a.category))).sort();
+    const calculationDate = format(new Date(), 'yyyy-MM-dd');
+
+    const matrix: Record<string, Record<string, number>> = {};
+
+    categories.forEach(cat => {
+      matrix[cat] = {};
+      branches.forEach(br => {
+        const assetsInCell = filteredAssets.filter(a => a.category === cat && a.location === br);
+        const totalDepr = assetsInCell.reduce((sum, a) => sum + calculateDepreciation(a, calculationDate).amount, 0);
+        matrix[cat][br] = totalDepr;
+      });
+    });
+
+    return { branches, categories, matrix };
+  }, [filteredAssets]);
 
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -153,7 +182,7 @@ export default function ReportsPage() {
       const calculationDate = format(new Date(), 'yyyy-MM-dd');
 
       if (type === 'Excel') {
-        const headers = "Branch,Category,Asset Name,Serial Number,Purchase Date,Vendor,Warranty Expiry,Purchase Amount,Opening WDV,Depr %,Depr Amount,Closing WDV\n";
+        const headers = "Branch,Category,Asset Name,Serial Number,Purchase Date,Vendor,Warranty Expiry,Purchase Amount,Opening WDV,Depr %,Depr Amount,Closing Balance (WDV)\n";
         const rows = filteredAssets.map(a => {
           const depr = calculateDepreciation(a, calculationDate);
           return `${a.location},${a.category},${a.name},${a.serialNumber},${a.purchaseDate},${a.vendorName || 'N/A'},${a.warrantyExpiry || 'N/A'},${a.purchaseValue},${a.currentBookValue},${a.depreciationRate}%,${depr.amount.toFixed(2)},${depr.newValue.toFixed(2)}`;
@@ -172,9 +201,13 @@ export default function ReportsPage() {
           content += `BRANCH: ${a.location.toUpperCase()} | CATEGORY: ${a.category}\n`;
           content += `ASSET: ${a.name} (${a.serialNumber})\n`;
           content += `PURCHASE: Date: ${a.purchaseDate} | Vendor: ${a.vendorName || 'N/A'} | Cost: ₹${(a.purchaseValue || 0).toLocaleString()}\n`;
-          content += `WARRANTY: ${a.warrantyExpiry || 'N/A'}\n`;
-          content += `DEPRECIATION: Rate: ${a.depreciationRate}% | Amount: ₹${depr.amount.toLocaleString()}\n`;
-          content += `FINANCIALS: Opening WDV: ₹${(a.currentBookValue || 0).toLocaleString()} | Closing Balance: ₹${depr.newValue.toLocaleString()}\n`;
+          content += `WARRANTY: Expiry: ${a.warrantyExpiry || 'N/A'}\n`;
+          content += `FINANCIALS:\n`;
+          content += `  Purchase Amount: ₹${(a.purchaseValue || 0).toLocaleString()}\n`;
+          content += `  Opening WDV:     ₹${(a.currentBookValue || 0).toLocaleString()}\n`;
+          content += `  Depr Rate:       ${a.depreciationRate}%\n`;
+          content += `  Depr Amount:     ₹${depr.amount.toLocaleString()}\n`;
+          content += `  Closing Balance: ₹${depr.newValue.toLocaleString()}\n`;
           content += `--------------------------------------------------------------------------------------------------------\n`;
         });
         fileName += ".txt";
@@ -413,6 +446,83 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* New Depreciation Summary Matrix Report */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="font-headline text-lg flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-accent" />
+                Depreciation Summary Matrix
+              </CardTitle>
+              <CardDescription>Matrix view of total depreciation amount by Branch (columns) and Category (rows).</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {depreciationMatrix.categories.length > 0 ? (
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead className="font-bold border-r">Asset Category</TableHead>
+                    {depreciationMatrix.branches.map(br => (
+                      <TableHead key={br} className="font-bold text-center border-r min-w-[120px]">
+                        {br}
+                      </TableHead>
+                    ))}
+                    <TableHead className="font-bold text-right bg-primary/5">Row Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {depreciationMatrix.categories.map(cat => {
+                    let rowTotal = 0;
+                    return (
+                      <TableRow key={cat}>
+                        <TableCell className="font-bold border-r bg-muted/20">{cat}</TableCell>
+                        {depreciationMatrix.branches.map(br => {
+                          const val = depreciationMatrix.matrix[cat][br] || 0;
+                          rowTotal += val;
+                          return (
+                            <TableCell key={br} className="text-center border-r text-xs font-medium">
+                              {val > 0 ? `₹${val.toLocaleString()}` : "-"}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-right font-bold bg-primary/5 text-primary">
+                          ₹{rowTotal.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+                <tfoot className="bg-accent/5 font-bold">
+                  <TableRow>
+                    <TableCell className="border-r">Column Total</TableCell>
+                    {depreciationMatrix.branches.map(br => {
+                      const colTotal = depreciationMatrix.categories.reduce((sum, cat) => sum + (depreciationMatrix.matrix[cat][br] || 0), 0);
+                      return (
+                        <TableCell key={br} className="text-center border-r text-accent">
+                          ₹{colTotal.toLocaleString()}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-right text-lg text-accent bg-accent/10">
+                      ₹{filteredAssets.reduce((sum, a) => sum + calculateDepreciation(a, format(new Date(), 'yyyy-MM-dd')).amount, 0).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                </tfoot>
+              </Table>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+              <TableIcon className="h-10 w-10 opacity-20 mb-4" />
+              <p className="text-sm italic">No data available for the selected filters.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="shadow-sm">
         <CardHeader>
