@@ -76,6 +76,9 @@ export default function CategoriesPage() {
     if (isEditing && formState.id) {
       const docRef = doc(db, "categories", formState.id);
       setDoc(docRef, categoryData, { merge: true })
+        .then(() => {
+          toast({ title: "Success", description: "Category updated successfully." });
+        })
         .catch(async (error) => {
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
@@ -83,9 +86,17 @@ export default function CategoriesPage() {
             requestResourceData: categoryData,
           });
           errorEmitter.emit('permission-error', permissionError);
+          toast({ variant: "destructive", title: "Failed to save", description: "Permission denied." });
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+          setIsOpen(false);
         });
     } else {
       addDoc(collection(db, "categories"), categoryData)
+        .then(() => {
+          toast({ title: "Success", description: "Category saved successfully." });
+        })
         .catch(async (error) => {
           const permissionError = new FirestorePermissionError({
             path: "categories",
@@ -93,28 +104,30 @@ export default function CategoriesPage() {
             requestResourceData: categoryData,
           });
           errorEmitter.emit('permission-error', permissionError);
+          toast({ variant: "destructive", title: "Failed to save", description: "Permission denied." });
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+          setIsOpen(false);
         });
     }
-
-    // Immediate non-blocking feedback
-    toast({ title: "Success", description: "Saved successfully." });
-    setIsOpen(false);
-    setIsSubmitting(false);
   };
 
   const handleDelete = (id: string) => {
     if (!db) return;
     const docRef = doc(db, "categories", id);
     deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "Success", description: "Category deleted successfully." });
+      })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: "destructive", title: "Delete Failed", description: "Could not remove entry." });
       });
-    
-    toast({ title: "Success", description: "Category deleted successfully." });
   };
 
   return (
@@ -156,7 +169,14 @@ export default function CategoriesPage() {
                   <Label htmlFor="method">Depreciation Method</Label>
                   <Select 
                     value={formState.method} 
-                    onValueChange={(val: any) => setFormState({ ...formState, method: val })}
+                    onValueChange={(val: any) => {
+                      const newState = { ...formState, method: val };
+                      if (val === "No Depreciation") {
+                        newState.rate = 0;
+                        newState.life = "Infinite";
+                      }
+                      setFormState(newState);
+                    }}
                   >
                     <SelectTrigger id="method">
                       <SelectValue placeholder="Select Method" />
@@ -165,6 +185,7 @@ export default function CategoriesPage() {
                       <SelectItem value="WDV">Written Down Value (WDV)</SelectItem>
                       <SelectItem value="Straight Line">Straight Line Method</SelectItem>
                       <SelectItem value="Purchase Amount">Purchase Amount (Flat)</SelectItem>
+                      <SelectItem value="No Depreciation">No Depreciation</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -179,6 +200,7 @@ export default function CategoriesPage() {
                       placeholder="e.g. 15" 
                       value={formState.rate}
                       onChange={(e) => setFormState({ ...formState, rate: parseFloat(e.target.value) || 0 })}
+                      disabled={formState.method === "No Depreciation"}
                       required
                     />
                   </div>
@@ -189,6 +211,7 @@ export default function CategoriesPage() {
                       placeholder="e.g. 5" 
                       value={formState.life}
                       onChange={(e) => setFormState({ ...formState, life: e.target.value })}
+                      disabled={formState.method === "No Depreciation"}
                       required
                     />
                   </div>
@@ -243,7 +266,7 @@ export default function CategoriesPage() {
                       <TableCell>
                         <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">{cat.rate}%</Badge>
                       </TableCell>
-                      <TableCell>{cat.life} Years</TableCell>
+                      <TableCell>{cat.life} {cat.method === "No Depreciation" ? "" : "Years"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 

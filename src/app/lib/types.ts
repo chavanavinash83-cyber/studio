@@ -32,7 +32,7 @@ export interface MasterCategory {
   name: string;
   rate: number;
   life: string;
-  method: "WDV" | "Straight Line" | "Purchase Amount";
+  method: "WDV" | "Straight Line" | "Purchase Amount" | "No Depreciation";
 }
 
 export interface MaintenanceRecord {

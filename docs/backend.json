@@ -66,7 +66,7 @@
         "name": { "type": "string" },
         "rate": { "type": "number", "description": "Numeric depreciation rate (e.g., 15 for 15%)" },
         "life": { "type": "string" },
-        "method": { "type": "string", "enum": ["WDV", "Straight Line", "Purchase Amount"] }
+        "method": { "type": "string", "enum": ["WDV", "Straight Line", "Purchase Amount", "No Depreciation"] }
       },
       "required": ["name", "rate", "method"]
     },
