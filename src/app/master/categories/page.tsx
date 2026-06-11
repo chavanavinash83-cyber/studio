@@ -30,19 +30,35 @@ const INITIAL_CATEGORIES = [
 export default function CategoriesPage() {
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [isOpen, setIsOpen] = useState(false);
-  const [newCategory, setNewCategory] = useState({ name: "", rate: "", life: "" });
+  const [formState, setFormState] = useState({ id: "", name: "", rate: "", life: "" });
+  const [isEditing, setIsEditing] = useState(false);
 
-  const handleAddCategory = (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setIsEditing(false);
+    setFormState({ id: "", name: "", rate: "", life: "" });
+    setIsOpen(true);
+  };
+
+  const handleOpenEdit = (category: typeof INITIAL_CATEGORIES[0]) => {
+    setIsEditing(true);
+    setFormState(category);
+    setIsOpen(true);
+  };
+
+  const handleSaveCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCategory.name) return;
+    if (!formState.name) return;
 
-    const categoryToAdd = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...newCategory
-    };
+    if (isEditing) {
+      setCategories(categories.map(c => c.id === formState.id ? formState : c));
+    } else {
+      const categoryToAdd = {
+        ...formState,
+        id: Math.random().toString(36).substr(2, 9),
+      };
+      setCategories([...categories, categoryToAdd]);
+    }
 
-    setCategories([...categories, categoryToAdd]);
-    setNewCategory({ name: "", rate: "", life: "" });
     setIsOpen(false);
   };
 
@@ -62,27 +78,25 @@ export default function CategoriesPage() {
         </div>
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary">
-              <Plus className="h-4 w-4 mr-2" /> Add Category
-            </Button>
-          </DialogTrigger>
+          <Button onClick={handleOpenAdd} className="bg-primary">
+            <Plus className="h-4 w-4 mr-2" /> Add Category
+          </Button>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Asset Category</DialogTitle>
+              <DialogTitle>{isEditing ? "Edit Asset Category" : "Add Asset Category"}</DialogTitle>
               <DialogDescription>
-                Define a new asset class with its corresponding depreciation rate and useful life.
+                {isEditing ? "Update the details for this asset class." : "Define a new asset class with its corresponding depreciation rate and useful life."}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleAddCategory}>
+            <form onSubmit={handleSaveCategory}>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Category Name</Label>
                   <Input 
                     id="name" 
                     placeholder="e.g. Office Equipment" 
-                    value={newCategory.name}
-                    onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                    value={formState.name}
+                    onChange={(e) => setFormState({ ...formState, name: e.target.value })}
                     required
                   />
                 </div>
@@ -92,8 +106,8 @@ export default function CategoriesPage() {
                     <Input 
                       id="rate" 
                       placeholder="e.g. 10%" 
-                      value={newCategory.rate}
-                      onChange={(e) => setNewCategory({ ...newCategory, rate: e.target.value })}
+                      value={formState.rate}
+                      onChange={(e) => setFormState({ ...formState, rate: e.target.value })}
                       required
                     />
                   </div>
@@ -102,15 +116,15 @@ export default function CategoriesPage() {
                     <Input 
                       id="life" 
                       placeholder="e.g. 5 Years" 
-                      value={newCategory.life}
-                      onChange={(e) => setNewCategory({ ...newCategory, life: e.target.value })}
+                      value={formState.life}
+                      onChange={(e) => setFormState({ ...formState, life: e.target.value })}
                       required
                     />
                   </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Save Category</Button>
+                <Button type="submit">{isEditing ? "Update Category" : "Save Category"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -139,7 +153,14 @@ export default function CategoriesPage() {
                     <TableCell>{cat.life}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Edit2 className="h-3 w-3" /></Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleOpenEdit(cat)}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
