@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -32,14 +33,63 @@ const INITIAL_BRANCHES = [
   { id: "4", name: "Ghodegaon", code: "GHO", type: "Manufacturing", location: "Ambegaon, MH" },
 ];
 
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  location: string;
+}
+
 export default function BranchesPage() {
-  const [branches, setBranches] = useState(INITIAL_BRANCHES);
+  const [branches, setBranches] = useState<Branch[]>(INITIAL_BRANCHES);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentBranch, setCurrentBranch] = useState<Branch>({
+    id: "",
+    name: "",
+    code: "",
+    type: "",
+    location: "",
+  });
 
   const filteredBranches = branches.filter(b => 
     b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     b.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleOpenAdd = () => {
+    setIsEditing(false);
+    setCurrentBranch({ id: "", name: "", code: "", type: "", location: "" });
+    setIsOpen(true);
+  };
+
+  const handleOpenEdit = (branch: Branch) => {
+    setIsEditing(true);
+    setCurrentBranch(branch);
+    setIsOpen(true);
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentBranch.name || !currentBranch.code) return;
+
+    if (isEditing) {
+      setBranches(branches.map(b => b.id === currentBranch.id ? currentBranch : b));
+    } else {
+      const newBranch = {
+        ...currentBranch,
+        id: Math.random().toString(36).substr(2, 9),
+      };
+      setBranches([...branches, newBranch]);
+    }
+    setIsOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setBranches(branches.filter(b => b.id !== id));
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -52,40 +102,65 @@ export default function BranchesPage() {
           <p className="text-muted-foreground">Manage organizational units and geographical locations.</p>
         </div>
         
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90">
-              <Plus className="h-4 w-4 mr-2" /> Add Branch
-            </Button>
-          </DialogTrigger>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <Button onClick={handleOpenAdd} className="bg-primary hover:bg-primary/90">
+            <Plus className="h-4 w-4 mr-2" /> Add Branch
+          </Button>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Branch</DialogTitle>
-              <DialogDescription>Input details for a new geographical or organizational node.</DialogDescription>
+              <DialogTitle>{isEditing ? "Edit Branch" : "Add New Branch"}</DialogTitle>
+              <DialogDescription>Input details for a geographical or organizational node.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Branch Name</Label>
-                <Input id="name" placeholder="e.g. Pune City Center" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSave}>
+              <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="code">Branch Code</Label>
-                  <Input id="code" placeholder="e.g. PCC" maxLength={3} />
+                  <Label htmlFor="name">Branch Name</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="e.g. Pune City Center" 
+                    value={currentBranch.name}
+                    onChange={(e) => setCurrentBranch({ ...currentBranch, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="code">Branch Code</Label>
+                    <Input 
+                      id="code" 
+                      placeholder="e.g. PCC" 
+                      maxLength={3} 
+                      value={currentBranch.code}
+                      onChange={(e) => setCurrentBranch({ ...currentBranch, code: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="type">Operational Type</Label>
+                    <Input 
+                      id="type" 
+                      placeholder="e.g. Warehouse" 
+                      value={currentBranch.type}
+                      onChange={(e) => setCurrentBranch({ ...currentBranch, type: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="type">Operational Type</Label>
-                  <Input id="type" placeholder="e.g. Warehouse" />
+                  <Label htmlFor="location">Address / Location</Label>
+                  <Input 
+                    id="location" 
+                    placeholder="e.g. Sector 12, IT Park" 
+                    value={currentBranch.location}
+                    onChange={(e) => setCurrentBranch({ ...currentBranch, location: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="location">Address / Location</Label>
-                <Input id="location" placeholder="e.g. Sector 12, IT Park" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Save Branch</Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button type="submit">{isEditing ? "Update Branch" : "Save Branch"}</Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
@@ -129,8 +204,22 @@ export default function BranchesPage() {
                   <TableCell className="text-xs text-muted-foreground">{branch.location}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8"><Edit2 className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-3 w-3" /></Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 hover:bg-accent/20"
+                        onClick={() => handleOpenEdit(branch)}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(branch.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
