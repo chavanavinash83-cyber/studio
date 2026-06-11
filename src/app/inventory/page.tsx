@@ -73,6 +73,7 @@ export default function InventoryPage() {
 
   const [currentAsset, setCurrentAsset] = useState<Partial<Asset>>({
     name: "",
+    brand: "",
     model: "",
     serialNumber: "",
     category: "",
@@ -113,6 +114,7 @@ export default function InventoryPage() {
   const filteredAssets = (assets || []).filter(asset => {
     const matchesSearch = 
       asset.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      asset.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.model?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
@@ -123,6 +125,7 @@ export default function InventoryPage() {
     setIsEditing(false);
     setCurrentAsset({
       name: "",
+      brand: "",
       model: "",
       serialNumber: "",
       category: categories?.[0]?.name || "",
@@ -257,15 +260,24 @@ export default function InventoryPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSave} className="space-y-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2 space-y-2">
                   <Label htmlFor="name">Asset Name</Label>
                   <Input 
                     id="name" 
                     value={currentAsset.name} 
                     onChange={e => setCurrentAsset({...currentAsset, name: e.target.value})}
-                    placeholder="e.g. Dell XPS 15" 
+                    placeholder="e.g. Latitude 5520" 
                     required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="brand">Brand</Label>
+                  <Input 
+                    id="brand" 
+                    value={currentAsset.brand} 
+                    onChange={e => setCurrentAsset({...currentAsset, brand: e.target.value})}
+                    placeholder="e.g. Dell" 
                   />
                 </div>
                 <div className="space-y-2">
@@ -540,7 +552,7 @@ export default function InventoryPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search by name, model or serial..." 
+            placeholder="Search by name, brand, model or serial..." 
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -588,7 +600,9 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-bold text-sm leading-tight">{asset.name}</span>
-                        <span className="text-[11px] text-muted-foreground font-medium">{asset.model || "No Model"}</span>
+                        <span className="text-[11px] text-muted-foreground font-medium">
+                          {asset.brand ? `${asset.brand} ` : ""}{asset.model || "No Model"}
+                        </span>
                         <span className="text-[10px] font-code text-primary uppercase mt-1 tracking-wider">{asset.serialNumber}</span>
                       </div>
                     </TableCell>
@@ -646,7 +660,7 @@ export default function InventoryPage() {
                                   <rect x="10" y="10" width="10" height="10" fill="white" />
                                   <rect x="80" y="10" width="10" height="10" fill="white" />
                                   <rect x="10" y="80" width="10" height="10" fill="white" />
-                                  <path d="M40 0h20v10H40zM40 20h10v10H40zM60 20h10v10H60zM30 40h10v10H30zM50 40h20v10H50zM80 40h20v10H80zM0 60h10v10H0zM20 60h10v10H20zM40 60h30v10H40zM90 60h10v10H90zM30 70h10v10H30zM50 70h10v10H50zM70 70h10v10H70zM40 80h10v10H40zM60 80h10v10H60zM80 80h20v10H80zM30 90h10v10H30z" fill="currentColor" />
+                                  <path d="M40 0h20v10H40zM40 20h10v10H40zM60 20h10v10H60zM30 40h10v10H30zM50 40h20v10H50zM80 40h20v10H80zM0 60h10v10H0zM20 60h10v10H20zM40 60h30v10H40zM90 60h10v10H90zM30 70h10v10H30zM50 70h10v10H50zM70 70h10v10H70zM40 80h10v10H40zM60 80h10v10H60z" fill="currentColor" />
                                 </svg>
                               </div>
                               <div className="text-center">
@@ -686,7 +700,7 @@ export default function InventoryPage() {
                   </TableCell>
                 </TableRow>
               )}
-            </TableBody>
+            </Body>
           </Table>
         )}
       </div>

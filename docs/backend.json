@@ -39,6 +39,7 @@
         "id": { "type": "string" },
         "serialNumber": { "type": "string" },
         "name": { "type": "string" },
+        "brand": { "type": "string" },
         "model": { "type": "string" },
         "category": { "type": "string" },
         "purchaseDate": { "type": "string" },

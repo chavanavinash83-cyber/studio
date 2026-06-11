@@ -20,6 +20,7 @@ export const MOCK_ASSETS: Asset[] = [
   },
   {
     id: 'ASSET-002',
+    brand: 'Ford',
     serialNumber: 'VEH-MN-022',
     name: 'Logistics Van 4',
     model: 'Transit V363',
@@ -38,6 +39,7 @@ export const MOCK_ASSETS: Asset[] = [
   },
   {
     id: 'ASSET-003',
+    brand: 'Dell',
     serialNumber: 'IT-SL-505',
     name: 'High Performance Server R740',
     model: 'PowerEdge R740',
@@ -56,6 +58,7 @@ export const MOCK_ASSETS: Asset[] = [
   },
   {
     id: 'ASSET-004',
+    brand: 'Haas',
     serialNumber: 'MAC-GH-101',
     name: 'CNC Milling Machine',
     model: 'VF-2SS',

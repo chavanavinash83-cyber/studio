@@ -51,6 +51,7 @@ export async function seedDemoData(db: Firestore) {
   const assets: Omit<Asset, 'id'>[] = [
     {
       name: 'Main Server Rack',
+      brand: 'Dell',
       serialNumber: 'SRV-001',
       model: 'PowerEdge R740',
       category: 'IT Equipment',
@@ -68,6 +69,7 @@ export async function seedDemoData(db: Firestore) {
     },
     {
       name: 'Logistics Van 1',
+      brand: 'Tata',
       serialNumber: 'MH-14-GH-1234',
       model: 'Tata Ace',
       category: 'Vehicles',

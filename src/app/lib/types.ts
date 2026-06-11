@@ -9,6 +9,7 @@ export interface Asset {
   id: string;
   serialNumber: string;
   name: string;
+  brand?: string;
   model?: string;
   category: AssetCategory;
   purchaseDate: string;
