@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MOCK_ASSETS } from "../lib/mock-data";
 import { 
@@ -18,7 +19,8 @@ import {
   ShieldCheck,
   Package,
   FileSpreadsheet,
-  FileDown
+  FileDown,
+  X
 } from "lucide-react";
 import { 
   Bar, 
@@ -40,25 +42,50 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ReportsPage() {
   const { toast } = useToast();
+  
+  // Filter States
+  const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // Mock Data Aggregations
-  const categoryData = [
-    { name: 'Buildings', value: MOCK_ASSETS.filter(a => a.category === 'Buildings').length },
-    { name: 'Vehicles', value: MOCK_ASSETS.filter(a => a.category === 'Vehicles').length },
-    { name: 'IT Equipment', value: MOCK_ASSETS.filter(a => a.category === 'IT Equipment').length },
-    { name: 'Machinery', value: MOCK_ASSETS.filter(a => a.category === 'Electronics Machinery').length },
-  ];
+  // Derived Filtered Data
+  const filteredAssets = useMemo(() => {
+    return MOCK_ASSETS.filter(asset => {
+      const matchesBranch = branchFilter === "all" || asset.location === branchFilter;
+      const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
+      return matchesBranch && matchesCategory;
+    });
+  }, [branchFilter, categoryFilter]);
 
-  const valueByBranch = [
-    { name: 'Khodad', value: MOCK_ASSETS.filter(a => a.location === 'Khodad').reduce((s, a) => s + a.purchaseValue, 0) },
-    { name: 'Manjarwadi', value: MOCK_ASSETS.filter(a => a.location === 'Manjarwadi').reduce((s, a) => s + a.purchaseValue, 0) },
-    { name: 'Sultanpur', value: MOCK_ASSETS.filter(a => a.location === 'Sultanpur').reduce((s, a) => s + a.purchaseValue, 0) },
-    { name: 'Ghodegaon', value: MOCK_ASSETS.filter(a => a.location === 'Ghodegaon').reduce((s, a) => s + a.purchaseValue, 0) },
-  ];
+  // Aggregations based on filtered data
+  const categoryData = useMemo(() => {
+    const categories = ["Buildings", "Vehicles", "IT Equipment", "Electronics Machinery"];
+    return categories.map(cat => ({
+      name: cat,
+      value: filteredAssets.filter(a => a.category === cat).length
+    })).filter(item => item.value > 0);
+  }, [filteredAssets]);
+
+  const valueByBranch = useMemo(() => {
+    const branches = ["Khodad", "Manjarwadi", "Sultanpur", "Ghodegaon"];
+    return branches.map(branch => ({
+      name: branch,
+      value: filteredAssets.filter(a => a.location === branch).reduce((s, a) => s + a.purchaseValue, 0)
+    })).filter(item => item.value > 0);
+  }, [filteredAssets]);
+
+  const totalAcquisition = filteredAssets.reduce((s, a) => s + a.purchaseValue, 0);
+  const netBookValue = filteredAssets.reduce((s, a) => s + a.currentBookValue, 0);
+  const criticalAssetsCount = filteredAssets.filter(a => a.status === 'Under Repair').length;
 
   const maintenanceData = [
     { month: 'Jan', cost: 45000 },
@@ -77,33 +104,31 @@ export default function ReportsPage() {
       description: `Preparing ${reportName} for download.`,
     });
 
-    // Simulate file generation and download
     setTimeout(() => {
       let content = "";
       let fileName = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
       let mimeType = "";
 
       if (type === 'Excel') {
-        // Generate a CSV
         const headers = "ID,Name,SerialNumber,Category,Location,PurchaseValue,BookValue\n";
-        const rows = MOCK_ASSETS.map(a => 
+        const rows = filteredAssets.map(a => 
           `${a.id},${a.name},${a.serialNumber},${a.category},${a.location},${a.purchaseValue},${a.currentBookValue}`
         ).join("\n");
         content = headers + rows;
         fileName += ".csv";
         mimeType = "text/csv";
       } else {
-        // Generate a simple text-based summary for PDF simulation
         content = `SAMPATTIPRO - ${reportName}\n`;
+        content += `Filters: Branch: ${branchFilter}, Category: ${categoryFilter}\n`;
         content += `Generated on: ${new Date().toLocaleString()}\n`;
         content += `-------------------------------------------\n\n`;
-        MOCK_ASSETS.forEach(a => {
+        filteredAssets.forEach(a => {
           content += `Asset: ${a.name} (${a.id})\n`;
           content += `Location: ${a.location} | Category: ${a.category}\n`;
           content += `Value: ₹${a.currentBookValue.toLocaleString()}\n`;
           content += `-------------------------------------------\n`;
         });
-        fileName += ".txt"; // Simulated PDF as Text
+        fileName += ".txt";
         mimeType = "text/plain";
       }
 
@@ -122,6 +147,11 @@ export default function ReportsPage() {
         description: `Successfully exported ${fileName}`,
       });
     }, 1500);
+  };
+
+  const clearFilters = () => {
+    setBranchFilter("all");
+    setCategoryFilter("all");
   };
 
   const reportTemplates = [
@@ -149,9 +179,60 @@ export default function ReportsPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="h-9">
-            <Filter className="mr-2 h-4 w-4" /> Filter
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={branchFilter !== "all" || categoryFilter !== "all" ? "default" : "outline"} size="sm" className="h-9 relative">
+                <Filter className="mr-2 h-4 w-4" /> 
+                Filter
+                {(branchFilter !== "all" || categoryFilter !== "all") && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-accent rounded-full border-2 border-background" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="grid gap-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold leading-none">Report Filters</h4>
+                  {(branchFilter !== "all" || categoryFilter !== "all") && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-0 text-xs text-muted-foreground hover:text-primary">
+                      <X className="h-3 w-3 mr-1" /> Clear All
+                    </Button>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="branch-filter">Branch Location</Label>
+                  <Select value={branchFilter} onValueChange={setBranchFilter}>
+                    <SelectTrigger id="branch-filter">
+                      <SelectValue placeholder="All Branches" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Branches</SelectItem>
+                      <SelectItem value="Khodad">Khodad</SelectItem>
+                      <SelectItem value="Manjarwadi">Manjarwadi</SelectItem>
+                      <SelectItem value="Sultanpur">Sultanpur</SelectItem>
+                      <SelectItem value="Ghodegaon">Ghodegaon</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="category-filter">Asset Category</Label>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger id="category-filter">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="Buildings">Buildings</SelectItem>
+                      <SelectItem value="Vehicles">Vehicles</SelectItem>
+                      <SelectItem value="IT Equipment">IT Equipment</SelectItem>
+                      <SelectItem value="Electronics Machinery">Electronics Machinery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Button 
             variant="outline" 
             size="sm" 
@@ -172,12 +253,12 @@ export default function ReportsPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-primary">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase">Total Acquisition Cost</CardDescription>
-            <CardTitle className="text-2xl font-bold">₹{MOCK_ASSETS.reduce((s, a) => s + a.purchaseValue, 0).toLocaleString()}</CardTitle>
+            <CardDescription className="text-xs font-bold uppercase">Filtered Acquisition Cost</CardDescription>
+            <CardTitle className="text-2xl font-bold">₹{totalAcquisition.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center text-xs text-green-600 font-bold">
-              <TrendingUp className="mr-1 h-3 w-3" /> +12.5% vs Last Year
+            <div className="flex items-center text-xs text-muted-foreground">
+              Based on {filteredAssets.length} assets
             </div>
           </CardContent>
         </Card>
@@ -185,7 +266,7 @@ export default function ReportsPage() {
         <Card className="border-l-4 border-l-accent">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase">Net Book Value</CardDescription>
-            <CardTitle className="text-2xl font-bold">₹{MOCK_ASSETS.reduce((s, a) => s + a.currentBookValue, 0).toLocaleString()}</CardTitle>
+            <CardTitle className="text-2xl font-bold">₹{netBookValue.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">Current Written Down Value (WDV)</div>
@@ -198,18 +279,18 @@ export default function ReportsPage() {
             <CardTitle className="text-2xl font-bold">₹3,20,000</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-muted-foreground">Total repairs across all branches</div>
+            <div className="text-xs text-muted-foreground">Total repairs (Historical Global)</div>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-red-500">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase">Critical Assets</CardDescription>
-            <CardTitle className="text-2xl font-bold">4</CardTitle>
+            <CardDescription className="text-xs font-bold uppercase">Anomalies Detected</CardDescription>
+            <CardTitle className="text-2xl font-bold">{criticalAssetsCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-red-500 font-bold">
-              <AlertCircle className="mr-1 h-3 w-3" /> Requires Immediate Audit
+              <AlertCircle className="mr-1 h-3 w-3" /> Assets under repair
             </div>
           </CardContent>
         </Card>
@@ -219,28 +300,32 @@ export default function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-lg">Asset Count by Category</CardTitle>
-            <CardDescription>Volume distribution of physical inventory.</CardDescription>
+            <CardDescription>Volume distribution for current selection.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <RechartsTooltip />
-                <Legend verticalAlign="bottom" height={36}/>
-              </RechartsPieChart>
-            </ResponsiveContainer>
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend verticalAlign="bottom" height={36}/>
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">No data for selected filters</div>
+            )}
           </CardContent>
         </Card>
 
@@ -250,21 +335,25 @@ export default function ReportsPage() {
             <CardDescription>Capital investment distribution (INR).</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={valueByBranch} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" fontSize={12} tickLine={false} axisLine={false} />
-                <RechartsTooltip 
-                  cursor={{fill: 'transparent'}}
-                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Investment']}
-                />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {valueByBranch.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {valueByBranch.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={valueByBranch} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" fontSize={12} tickLine={false} axisLine={false} />
+                  <RechartsTooltip 
+                    cursor={{fill: 'transparent'}}
+                    formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Investment']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {valueByBranch.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">No data for selected filters</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -274,7 +363,7 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="font-headline text-lg">Monthly Maintenance Trends</CardTitle>
-              <CardDescription>Visualizing repair costs over the current fiscal cycle.</CardDescription>
+              <CardDescription>Visualizing repair costs (Global Historical Trends).</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Select defaultValue="2024">
@@ -310,7 +399,7 @@ export default function ReportsPage() {
             <FileText className="h-5 w-5 text-primary" />
             Available Report Templates
           </CardTitle>
-          <CardDescription>Select a category to generate a comprehensive record.</CardDescription>
+          <CardDescription>Select a category to generate a comprehensive record based on current filters.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
