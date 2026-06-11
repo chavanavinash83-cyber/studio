@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -164,7 +163,7 @@ export default function InventoryPage() {
         errorEmitter.emit('permission-error', permissionError);
       });
     
-    toast({ title: "Success", description: "Saved successfully." });
+    toast({ title: "Success", description: "Deleted successfully." });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'invoice') => {
@@ -700,7 +699,7 @@ export default function InventoryPage() {
                   </TableCell>
                 </TableRow>
               )}
-            </Body>
+            </TableBody>
           </Table>
         )}
       </div>
