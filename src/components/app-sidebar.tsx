@@ -9,7 +9,13 @@ import {
   Wrench,
   Settings,
   ShieldCheck,
-  Building2
+  Building2,
+  Tags,
+  MapPin,
+  Briefcase,
+  Store,
+  Users,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,9 +31,14 @@ import {
   SidebarMenuItem,
   SidebarFooter
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-const items = [
+const mainItems = [
   {
     title: "Dashboard",
     url: "/",
@@ -52,6 +63,34 @@ const items = [
     title: "AI Audit Analyst",
     url: "/audit",
     icon: ShieldCheck,
+  },
+];
+
+const masterItems = [
+  {
+    title: "Asset Categories",
+    url: "/master/categories",
+    icon: Tags,
+  },
+  {
+    title: "Branches",
+    url: "/master/branches",
+    icon: MapPin,
+  },
+  {
+    title: "Departments",
+    url: "/master/departments",
+    icon: Briefcase,
+  },
+  {
+    title: "Vendors",
+    url: "/master/vendors",
+    icon: Store,
+  },
+  {
+    title: "System Users",
+    url: "/master/users",
+    icon: Users,
   },
 ];
 
@@ -82,7 +121,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -105,15 +144,57 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/40 font-medium px-4 py-2 uppercase text-[10px] tracking-widest">
+            Configuration
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <Collapsible defaultOpen className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton className="mx-2 rounded-lg py-6 text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent">
+                      <Settings className="h-5 w-5" />
+                      <span className="font-medium">Master Data</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenu className="mt-1">
+                      {masterItems.map((subItem) => (
+                        <SidebarMenuItem key={subItem.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === subItem.url}
+                            className={cn(
+                              "mx-4 rounded-lg py-5 transition-all",
+                              pathname === subItem.url
+                                ? "bg-sidebar-accent/50 text-white"
+                                : "text-sidebar-foreground/60 hover:text-white hover:bg-sidebar-accent/30"
+                            )}
+                          >
+                            <Link href={subItem.url}>
+                              <subItem.icon className="h-4 w-4" />
+                              <span className="text-sm">{subItem.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4">
         <div className="rounded-lg bg-sidebar-accent p-3">
-          <p className="text-xs text-sidebar-foreground/60 mb-2">Branches</p>
-          <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
-            <div className="bg-sidebar-background rounded px-2 py-1 text-center">KHO</div>
-            <div className="bg-sidebar-background rounded px-2 py-1 text-center">MNJ</div>
-            <div className="bg-sidebar-background rounded px-2 py-1 text-center">SLT</div>
-            <div className="bg-sidebar-background rounded px-2 py-1 text-center">GHO</div>
+          <p className="text-xs text-sidebar-foreground/60 mb-2">System Status</p>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-white uppercase tracking-tight">Active Node: IND-WEST-1</span>
           </div>
         </div>
       </SidebarFooter>
