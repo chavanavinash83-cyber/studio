@@ -5,17 +5,17 @@ import {
   LayoutDashboard,
   Package,
   ArrowLeftRight,
-  ClipboardCheck,
+  ShieldCheck,
   Wrench,
   Settings,
-  ShieldCheck,
   Building2,
   Tags,
   MapPin,
   Briefcase,
   Store,
   Users,
-  ChevronRight
+  ChevronRight,
+  Calculator
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,6 +48,11 @@ const mainItems = [
     title: "Asset Inventory",
     url: "/inventory",
     icon: Package,
+  },
+  {
+    title: "Depreciation Engine",
+    url: "/depreciation",
+    icon: Calculator,
   },
   {
     title: "Branch Transfers",
