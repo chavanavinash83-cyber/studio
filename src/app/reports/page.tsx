@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MOCK_ASSETS } from "../lib/mock-data";
 import { 
   BarChart3, 
   Download, 
@@ -20,7 +18,8 @@ import {
   Package,
   FileSpreadsheet,
   FileDown,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { 
   Bar, 
@@ -49,42 +48,55 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, orderBy } from "firebase/firestore";
+import { Asset } from "../lib/types";
 
 export default function ReportsPage() {
   const { toast } = useToast();
+  const db = useFirestore();
   
   // Filter States
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  // Fetch live assets
+  const assetsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "assets"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: assets, loading } = useCollection<Asset>(assetsQuery);
+
   // Derived Filtered Data
   const filteredAssets = useMemo(() => {
-    return MOCK_ASSETS.filter(asset => {
+    if (!assets) return [];
+    return assets.filter(asset => {
       const matchesBranch = branchFilter === "all" || asset.location === branchFilter;
       const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
       return matchesBranch && matchesCategory;
     });
-  }, [branchFilter, categoryFilter]);
+  }, [assets, branchFilter, categoryFilter]);
 
   // Aggregations based on filtered data
   const categoryData = useMemo(() => {
-    const categories = ["Buildings", "Vehicles", "IT Equipment", "Electronics Machinery"];
-    return categories.map(cat => ({
-      name: cat,
-      value: filteredAssets.filter(a => a.category === cat).length
-    })).filter(item => item.value > 0);
+    const counts: Record<string, number> = {};
+    filteredAssets.forEach(a => {
+      counts[a.category] = (counts[a.category] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [filteredAssets]);
 
   const valueByBranch = useMemo(() => {
-    const branches = ["Khodad", "Manjarwadi", "Sultanpur", "Ghodegaon"];
-    return branches.map(branch => ({
-      name: branch,
-      value: filteredAssets.filter(a => a.location === branch).reduce((s, a) => s + a.purchaseValue, 0)
-    })).filter(item => item.value > 0);
+    const values: Record<string, number> = {};
+    filteredAssets.forEach(a => {
+      values[a.location] = (values[a.location] || 0) + (a.purchaseValue || 0);
+    });
+    return Object.entries(values).map(([name, value]) => ({ name, value }));
   }, [filteredAssets]);
 
-  const totalAcquisition = filteredAssets.reduce((s, a) => s + a.purchaseValue, 0);
-  const netBookValue = filteredAssets.reduce((s, a) => s + a.currentBookValue, 0);
+  const totalAcquisition = filteredAssets.reduce((s, a) => s + (a.purchaseValue || 0), 0);
+  const netBookValue = filteredAssets.reduce((s, a) => s + (a.currentBookValue || 0), 0);
   const criticalAssetsCount = filteredAssets.filter(a => a.status === 'Under Repair').length;
 
   const maintenanceData = [
@@ -125,7 +137,7 @@ export default function ReportsPage() {
         filteredAssets.forEach(a => {
           content += `Asset: ${a.name} (${a.id})\n`;
           content += `Location: ${a.location} | Category: ${a.category}\n`;
-          content += `Value: ₹${a.currentBookValue.toLocaleString()}\n`;
+          content += `Value: ₹${(a.currentBookValue || 0).toLocaleString()}\n`;
           content += `-------------------------------------------\n`;
         });
         fileName += ".txt";
@@ -167,6 +179,14 @@ export default function ReportsPage() {
     { title: "Fixed Asset Register (FAR)", desc: "Complete regulatory list with book values and procurement dates.", icon: FileText },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -175,7 +195,7 @@ export default function ReportsPage() {
             <BarChart3 className="h-8 w-8 text-accent" />
             System Reports
           </h1>
-          <p className="text-muted-foreground">Detailed analytics and financial summaries for asset management.</p>
+          <p className="text-muted-foreground">Detailed analytics and financial summaries for live assets.</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -207,10 +227,9 @@ export default function ReportsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Branches</SelectItem>
-                      <SelectItem value="Khodad">Khodad</SelectItem>
-                      <SelectItem value="Manjarwadi">Manjarwadi</SelectItem>
-                      <SelectItem value="Sultanpur">Sultanpur</SelectItem>
-                      <SelectItem value="Ghodegaon">Ghodegaon</SelectItem>
+                      {Array.from(new Set(assets?.map(a => a.location) || [])).map(loc => (
+                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -222,10 +241,9 @@ export default function ReportsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="Buildings">Buildings</SelectItem>
-                      <SelectItem value="Vehicles">Vehicles</SelectItem>
-                      <SelectItem value="IT Equipment">IT Equipment</SelectItem>
-                      <SelectItem value="Electronics Machinery">Electronics Machinery</SelectItem>
+                      {Array.from(new Set(assets?.map(a => a.category) || [])).map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -251,9 +269,9 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-primary">
+        <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase">Filtered Acquisition Cost</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider">Acquisition Cost</CardDescription>
             <CardTitle className="text-2xl font-bold">₹{totalAcquisition.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -263,44 +281,44 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
         
-        <Card className="border-l-4 border-l-accent">
+        <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase">Net Book Value</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider">Net Book Value</CardDescription>
             <CardTitle className="text-2xl font-bold">₹{netBookValue.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-muted-foreground">Current Written Down Value (WDV)</div>
+            <div className="text-xs text-muted-foreground">Current WDV Projection</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500">
+        <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase">Maintenance Spend (YTD)</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider">Maintenance Spend (YTD)</CardDescription>
             <CardTitle className="text-2xl font-bold">₹3,20,000</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-muted-foreground">Total repairs (Historical Global)</div>
+            <div className="text-xs text-muted-foreground">Historical Maintenance Ledger</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase">Anomalies Detected</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider">Attention Required</CardDescription>
             <CardTitle className="text-2xl font-bold">{criticalAssetsCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-red-500 font-bold">
-              <AlertCircle className="mr-1 h-3 w-3" /> Assets under repair
+              <AlertCircle className="mr-1 h-3 w-3" /> Active repair tickets
             </div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Asset Count by Category</CardTitle>
-            <CardDescription>Volume distribution for current selection.</CardDescription>
+            <CardDescription>Volume distribution for filtered criteria.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {categoryData.length > 0 ? (
@@ -319,8 +337,8 @@ export default function ReportsPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <RechartsTooltip />
-                  <Legend verticalAlign="bottom" height={36}/>
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
                 </RechartsPieChart>
               </ResponsiveContainer>
             ) : (
@@ -329,7 +347,7 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Acquisition Value by Branch</CardTitle>
             <CardDescription>Capital investment distribution (INR).</CardDescription>
@@ -339,9 +357,10 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={valueByBranch} layout="vertical">
                   <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis dataKey="name" type="category" fontSize={12} tickLine={false} axisLine={false} width={100} />
                   <RechartsTooltip 
                     cursor={{fill: 'transparent'}}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Investment']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -358,12 +377,12 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="font-headline text-lg">Monthly Maintenance Trends</CardTitle>
-              <CardDescription>Visualizing repair costs (Global Historical Trends).</CardDescription>
+              <CardDescription>Visualizing historical repair costs across the system.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Select defaultValue="2024">
@@ -393,7 +412,7 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="font-headline text-lg flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
