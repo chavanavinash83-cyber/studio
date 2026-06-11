@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +10,11 @@ import {
   Calendar,
   FileText,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Calculator,
+  ArrowLeftRight,
+  Store,
+  Wrench
 } from "lucide-react";
 import { 
   Bar, 
