@@ -19,7 +19,8 @@ import {
   FileDown,
   X,
   Loader2,
-  Table as TableIcon
+  Table as TableIcon,
+  CheckCircle2
 } from "lucide-react";
 import { 
   Bar, 
@@ -61,6 +62,13 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useCollection } from "@/firebase";
@@ -69,12 +77,19 @@ import { Asset, MaintenanceRecord } from "../lib/types";
 import { calculateDepreciation } from "../lib/depreciation";
 import { format } from "date-fns";
 
+type DetailView = {
+  title: string;
+  description: string;
+  type: 'assets' | 'maintenance' | 'depreciation' | 'warranty' | 'repair_cost';
+} | null;
+
 export default function ReportsPage() {
   const { toast } = useToast();
   const db = useFirestore();
   
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [activeDetail, setActiveDetail] = useState<DetailView>(null);
 
   const assetsQuery = useMemo(() => {
     if (!db) return null;
@@ -98,7 +113,17 @@ export default function ReportsPage() {
     });
   }, [assets, branchFilter, categoryFilter]);
 
-  // Matrix Calculation: Depreciation Summary by Branch (Columns) and Category (Rows)
+  const filteredMaintenance = useMemo(() => {
+    if (!maintenanceRecords || !assets) return [];
+    return maintenanceRecords.filter(record => {
+      const asset = assets.find(a => a.id === record.assetId || a.serialNumber === record.assetId);
+      if (!asset) return false;
+      const matchesBranch = branchFilter === "all" || asset.location === branchFilter;
+      const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
+      return matchesBranch && matchesCategory;
+    });
+  }, [maintenanceRecords, assets, branchFilter, categoryFilter]);
+
   const depreciationMatrix = useMemo(() => {
     const branches = Array.from(new Set(filteredAssets.map(a => a.location))).sort();
     const categories = Array.from(new Set(filteredAssets.map(a => a.category))).sort();
@@ -139,12 +164,10 @@ export default function ReportsPage() {
   const criticalAssetsCount = filteredAssets.filter(a => a.status === 'Under Repair').length;
 
   const totalMaintenanceSpendYTD = useMemo(() => {
-    if (!maintenanceRecords) return 0;
-    const currentYear = new Date().getFullYear();
-    return maintenanceRecords
-      .filter(r => new Date(r.date).getFullYear() === currentYear)
+    return filteredMaintenance
+      .filter(r => new Date(r.date).getFullYear() === new Date().getFullYear())
       .reduce((sum, r) => sum + (r.cost || 0), 0);
-  }, [maintenanceRecords]);
+  }, [filteredMaintenance]);
 
   const monthlyMaintenanceTrends = useMemo(() => {
     if (!maintenanceRecords) return [];
@@ -154,18 +177,15 @@ export default function ReportsPage() {
     
     months.forEach(m => stats[m] = 0);
     
-    maintenanceRecords
-      .filter(r => {
-        const d = new Date(r.date);
-        return d.getFullYear() === currentYear;
-      })
+    filteredMaintenance
+      .filter(r => new Date(r.date).getFullYear() === currentYear)
       .forEach(r => {
         const m = months[new Date(r.date).getMonth()];
         stats[m] += r.cost || 0;
       });
       
     return months.map(name => ({ name, cost: stats[name] }));
-  }, [maintenanceRecords]);
+  }, [filteredMaintenance, maintenanceRecords]);
 
   const COLORS = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8', '#A5B4FC'];
 
@@ -237,17 +257,132 @@ export default function ReportsPage() {
   };
 
   const reportTemplates = [
-    { title: "Branch Wise Asset Report", desc: "Detailed breakdown including purchase, vendor, and full depreciation ledger.", icon: MapPin },
-    { title: "Category Wise Report", desc: "Consolidated list of assets categorized by their asset classes.", icon: Tags },
-    { title: "Depreciation Report", desc: "Annual WDV calculation and fiscal year depreciation schedules.", icon: Calculator },
-    { title: "Vendor Wise Report", desc: "Procurement history and spend analysis per supplier.", icon: Store },
-    { title: "Warranty Expiry Report", desc: "Active alerts for assets reaching warranty limits.", icon: AlertCircle },
-    { title: "Dead Stock Report", desc: "Assets classified as disposed or out of service for long durations.", icon: Package },
-    { title: "Repair Cost Report", desc: "Maintenance ledger with total repair spend per unit.", icon: Wrench },
-    { title: "Transfer Register", desc: "Digital audit trail of all inter-branch asset movements.", icon: ArrowLeftRight },
-    { title: "Audit Register", desc: "Historical records of physical verification and AI-led audits.", icon: ShieldCheck },
-    { title: "Fixed Asset Register (FAR)", desc: "Complete regulatory list with book values and procurement dates.", icon: FileText },
+    { title: "Branch Wise Asset Report", desc: "Detailed breakdown including purchase and vendor info.", icon: MapPin, type: 'assets' as const },
+    { title: "Category Wise Report", desc: "Consolidated list categorized by asset classes.", icon: Tags, type: 'assets' as const },
+    { title: "Depreciation Report", desc: "Annual WDV calculation and depreciation schedules.", icon: Calculator, type: 'depreciation' as const },
+    { title: "Vendor Wise Report", desc: "Procurement history and spend per supplier.", icon: Store, type: 'assets' as const },
+    { title: "Warranty Expiry Report", desc: "Alerts for assets reaching warranty limits.", icon: AlertCircle, type: 'warranty' as const },
+    { title: "Dead Stock Report", desc: "Assets classified as disposed or long-term stored.", icon: Package, type: 'assets' as const },
+    { title: "Repair Cost Report", desc: "Maintenance ledger with total spend per unit.", icon: Wrench, type: 'repair_cost' as const },
+    { title: "Transfer Register", desc: "Audit trail of inter-branch movements.", icon: ArrowLeftRight, type: 'assets' as const },
+    { title: "Fixed Asset Register (FAR)", desc: "Complete regulatory list with book values.", icon: FileText, type: 'assets' as const },
   ];
+
+  const renderDetailTable = () => {
+    if (!activeDetail) return null;
+    const calcDate = format(new Date(), 'yyyy-MM-dd');
+
+    switch (activeDetail.type) {
+      case 'maintenance':
+      case 'repair_cost':
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Cost (₹)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMaintenance.map((m, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">
+                    {assets?.find(a => a.id === m.assetId || a.serialNumber === m.assetId)?.name || m.assetId}
+                  </TableCell>
+                  <TableCell>{m.provider}</TableCell>
+                  <TableCell>{m.date}</TableCell>
+                  <TableCell className="text-right font-bold">₹{m.cost.toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        );
+      case 'depreciation':
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset</TableHead>
+                <TableHead className="text-right">Opening WDV</TableHead>
+                <TableHead className="text-right">Rate</TableHead>
+                <TableHead className="text-right">Depreciation</TableHead>
+                <TableHead className="text-right">Closing WDV</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAssets.map((a, i) => {
+                const depr = calculateDepreciation(a, calcDate);
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{a.name}</TableCell>
+                    <TableCell className="text-right">₹{a.currentBookValue.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{a.depreciationRate}%</TableCell>
+                    <TableCell className="text-right text-destructive">-₹{depr.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-bold text-primary">₹{depr.newValue.toLocaleString()}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        );
+      case 'warranty':
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Vendor</TableHead>
+                <TableHead className="text-right">Expiry Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAssets.map((a, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{a.name}</TableCell>
+                  <TableCell>{a.location}</TableCell>
+                  <TableCell>{a.vendorName || 'N/A'}</TableCell>
+                  <TableCell className={`text-right font-bold ${new Date(a.warrantyExpiry || '') < new Date() ? 'text-destructive' : 'text-green-600'}`}>
+                    {a.warrantyExpiry || 'N/A'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        );
+      default:
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset Name</TableHead>
+                <TableHead>Serial No</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead className="text-right">Acq. Value</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAssets.map((a, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{a.name}</TableCell>
+                  <TableCell className="font-code text-xs">{a.serialNumber}</TableCell>
+                  <TableCell>{a.location}</TableCell>
+                  <TableCell className="text-right">₹{a.purchaseValue.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${a.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {a.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        );
+    }
+  };
 
   if (assetsLoading || maintenanceLoading) {
     return (
@@ -339,46 +474,74 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
+        <Card 
+          className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-primary/5 group"
+          onClick={() => setActiveDetail({
+            title: "Acquisition Value Detailed Ledger",
+            description: "Breakdown of total procurement investment for current filters.",
+            type: 'assets'
+          })}
+        >
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase tracking-wider">Acquisition Cost</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider group-hover:text-primary transition-colors">Acquisition Cost</CardDescription>
             <CardTitle className="text-2xl font-bold">₹{totalAcquisition.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              Based on {filteredAssets.length} assets
+            <div className="flex items-center text-xs text-muted-foreground group-hover:text-primary/70 transition-colors">
+              Based on {filteredAssets.length} assets • Click to view
             </div>
           </CardContent>
         </Card>
         
-        <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
+        <Card 
+          className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-accent/5 group"
+          onClick={() => setActiveDetail({
+            title: "Net Book Value (WDV) Projection",
+            description: "Live written down value schedule for fiscal year reporting.",
+            type: 'depreciation'
+          })}
+        >
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase tracking-wider">Net Book Value</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider group-hover:text-accent transition-colors">Net Book Value</CardDescription>
             <CardTitle className="text-2xl font-bold">₹{netBookValue.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-muted-foreground">Current WDV Projection</div>
+            <div className="text-xs text-muted-foreground group-hover:text-accent/70">Current WDV Projection • Click to view</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
+        <Card 
+          className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-orange-50 group"
+          onClick={() => setActiveDetail({
+            title: "Maintenance Spend Ledger",
+            description: "Historical repair costs and service provider activity.",
+            type: 'maintenance'
+          })}
+        >
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase tracking-wider">Maintenance Spend (YTD)</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider group-hover:text-orange-600">Maintenance Spend (YTD)</CardDescription>
             <CardTitle className="text-2xl font-bold">₹{totalMaintenanceSpendYTD.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-muted-foreground">Historical Maintenance Ledger</div>
+            <div className="text-xs text-muted-foreground group-hover:text-orange-500">Historical Maintenance Ledger • Click to view</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
+        <Card 
+          className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-red-50 group"
+          onClick={() => setActiveDetail({
+            title: "Critical Assets Needing Attention",
+            description: "Assets currently under repair or with expired maintenance contracts.",
+            type: 'assets'
+          })}
+        >
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-bold uppercase tracking-wider">Attention Required</CardDescription>
+            <CardDescription className="text-xs font-bold uppercase tracking-wider group-hover:text-red-600">Attention Required</CardDescription>
             <CardTitle className="text-2xl font-bold">{criticalAssetsCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-red-500 font-bold">
-              <AlertCircle className="mr-1 h-3 w-3" /> Active repair tickets
+              <AlertCircle className="mr-1 h-3 w-3" /> {criticalAssetsCount} active repair tickets • Click to view
             </div>
           </CardContent>
         </Card>
@@ -447,7 +610,6 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      {/* New Depreciation Summary Matrix Report */}
       <Card className="shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -558,7 +720,7 @@ export default function ReportsPage() {
             <FileText className="h-5 w-5 text-primary" />
             Available Report Templates
           </CardTitle>
-          <CardDescription>Select a category to generate a comprehensive record based on current filters.</CardDescription>
+          <CardDescription>Select a category to view a comprehensive record based on current filters.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -566,20 +728,56 @@ export default function ReportsPage() {
               <div 
                 key={i} 
                 className="flex items-start gap-3 p-4 border rounded-xl hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
-                onClick={() => handleExport(report.title === "Branch Wise Asset Report" ? 'Excel' : 'PDF', report.title)}
+                onClick={() => setActiveDetail({
+                  title: report.title,
+                  description: report.desc,
+                  type: report.type
+                })}
               >
                 <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                   <report.icon className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h4 className="text-sm font-bold">{report.title}</h4>
                   <p className="text-xs text-muted-foreground leading-tight mt-1">{report.desc}</p>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleExport('PDF', report.title);
+                  }}
+                >
+                  <FileDown className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!activeDetail} onOpenChange={(open) => !open && setActiveDetail(null)}>
+        <DialogContent className="sm:max-w-[1000px] max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-2xl flex items-center gap-2">
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
+              {activeDetail?.title}
+            </DialogTitle>
+            <DialogDescription>{activeDetail?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto py-4 border-t mt-4">
+            {renderDetailTable()}
+          </div>
+          <div className="pt-4 border-t flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setActiveDetail(null)}>Close</Button>
+            <Button onClick={() => handleExport('Excel', activeDetail?.title)}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Ledger
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
