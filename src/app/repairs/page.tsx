@@ -1,10 +1,10 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MOCK_ASSETS } from "../lib/mock-data";
 import { Badge } from "@/components/ui/badge";
-import { Wrench, History, Warehouse, DollarSign, Clock } from "lucide-react";
+import { Wrench, History, Warehouse, DollarSign, Clock, Loader2 } from "lucide-react";
 import { 
   Table, 
   TableBody, 
@@ -13,14 +13,52 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, orderBy } from "firebase/firestore";
+import { Asset, MaintenanceRecord } from "../lib/types";
 
 export default function RepairsPage() {
+  const db = useFirestore();
+
+  const maintenanceQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "maintenance"), orderBy("date", "desc"));
+  }, [db]);
+
+  const assetsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "assets"), orderBy("name", "asc"));
+  }, [db]);
+
+  const { data: maintenanceRecords, loading: maintenanceLoading } = useCollection<MaintenanceRecord>(maintenanceQuery);
+  const { data: assets, loading: assetsLoading } = useCollection<Asset>(assetsQuery);
+
+  const totalCost = useMemo(() => {
+    return maintenanceRecords?.reduce((sum, r) => sum + (r.cost || 0), 0) || 0;
+  }, [maintenanceRecords]);
+
+  const activeRepairsCount = useMemo(() => {
+    return assets?.filter(a => a.status === 'Under Repair').length || 0;
+  }, [assets]);
+
+  const warehouseCount = useMemo(() => {
+    return assets?.filter(a => a.status === 'In Warehouse').length || 0;
+  }, [assets]);
+
   const maintenanceStats = [
-    { label: 'Total Service Cost', value: '₹1.42L', icon: DollarSign, color: 'text-green-600' },
-    { label: 'Active Repairs', value: '2', icon: Wrench, color: 'text-blue-600' },
-    { label: 'Storage (Warehouse)', value: '5', icon: Warehouse, color: 'text-primary' },
+    { label: 'Total Service Cost', value: `₹${(totalCost / 100000).toFixed(2)}L`, icon: DollarSign, color: 'text-green-600' },
+    { label: 'Active Repairs', value: activeRepairsCount.toString(), icon: Wrench, color: 'text-blue-600' },
+    { label: 'Storage (Warehouse)', value: warehouseCount.toString(), icon: Warehouse, color: 'text-primary' },
     { label: 'Avg Downtime', value: '4.2 Days', icon: Clock, color: 'text-orange-600' },
   ];
+
+  if (maintenanceLoading || assetsLoading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -50,7 +88,7 @@ export default function RepairsPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-headline">Recent Service History</CardTitle>
-              <CardDescription>Consolidated ledger of all repair activities.</CardDescription>
+              <CardDescription>Consolidated ledger of all repair activities from the cloud.</CardDescription>
             </div>
             <History className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
@@ -58,25 +96,34 @@ export default function RepairsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Asset</TableHead>
+                  <TableHead>Asset ID</TableHead>
                   <TableHead>Service Provider</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Cost (₹)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[
-                  { asset: 'Logistics Van 4', provider: 'Swift Motors', date: '2024-02-15', cost: 12500 },
-                  { asset: 'CNC Milling Machine', provider: 'Tech Solutions', date: '2024-02-10', cost: 45000 },
-                  { asset: 'Admin Laptop L-09', provider: 'Internal IT', date: '2024-01-28', cost: 1200 },
-                ].map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{item.asset}</TableCell>
-                    <TableCell>{item.provider}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{item.date}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{item.cost.toLocaleString()}</TableCell>
+                {maintenanceRecords && maintenanceRecords.length > 0 ? (
+                  maintenanceRecords.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold uppercase font-code">{item.assetId}</span>
+                          <span className="text-[10px] text-muted-foreground">{item.description}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{item.provider}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{item.date}</TableCell>
+                      <TableCell className="text-right font-bold text-primary">₹{(item.cost || 0).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      No service history found.
+                    </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -89,8 +136,8 @@ export default function RepairsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {MOCK_ASSETS.filter(a => a.status === 'In Warehouse').length > 0 ? (
-                MOCK_ASSETS.filter(a => a.status === 'In Warehouse').map((asset) => (
+              {assets && assets.filter(a => a.status === 'In Warehouse').length > 0 ? (
+                assets.filter(a => a.status === 'In Warehouse').map((asset) => (
                   <div key={asset.id} className="p-3 border rounded-lg space-y-2 bg-muted/20">
                     <div className="flex justify-between items-start">
                       <p className="text-sm font-bold">{asset.name}</p>

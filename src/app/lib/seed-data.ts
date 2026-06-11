@@ -1,6 +1,7 @@
 
 import { collection, addDoc, serverTimestamp, Firestore } from 'firebase/firestore';
-import { Asset, MasterCategory, AssetStatus } from './types';
+import { Asset, MasterCategory, MaintenanceRecord } from './types';
+import { format, subMonths } from 'date-fns';
 
 export async function seedDemoData(db: Firestore) {
   // 1. Seed Branches
@@ -48,6 +49,7 @@ export async function seedDemoData(db: Firestore) {
   }
 
   // 5. Seed Assets
+  const assetRefs = [];
   const assets: Omit<Asset, 'id'>[] = [
     {
       name: 'Main Server Rack',
@@ -101,6 +103,43 @@ export async function seedDemoData(db: Firestore) {
     }
   ];
   for (const a of assets) {
-    await addDoc(collection(db, 'assets'), { ...a, updatedAt: serverTimestamp() });
+    const ref = await addDoc(collection(db, 'assets'), { ...a, updatedAt: serverTimestamp() });
+    assetRefs.push({ id: ref.id, ...a });
+  }
+
+  // 6. Seed Maintenance Records
+  const maintenanceRecords: Omit<MaintenanceRecord, 'id'>[] = [
+    {
+      assetId: assetRefs[1]?.id || 'unknown',
+      date: format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
+      description: 'Engine overhaul and suspension check',
+      cost: 45000,
+      provider: 'Swift Motors'
+    },
+    {
+      assetId: assetRefs[0]?.id || 'unknown',
+      date: format(subMonths(new Date(), 2), 'yyyy-MM-dd'),
+      description: 'Server RAM upgrade (64GB)',
+      cost: 15000,
+      provider: 'Dell Enterprise'
+    },
+    {
+      assetId: assetRefs[1]?.id || 'unknown',
+      date: format(subMonths(new Date(), 4), 'yyyy-MM-dd'),
+      description: 'Tire replacement (Set of 4)',
+      cost: 22000,
+      provider: 'Local Workshop'
+    },
+    {
+      assetId: assetRefs[2]?.id || 'unknown',
+      date: format(subMonths(new Date(), 3), 'yyyy-MM-dd'),
+      description: 'HVAC system servicing',
+      cost: 12500,
+      provider: 'CoolAir Solutions'
+    }
+  ];
+
+  for (const m of maintenanceRecords) {
+    await addDoc(collection(db, 'maintenance'), { ...m, updatedAt: serverTimestamp() });
   }
 }

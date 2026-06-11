@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -55,25 +56,28 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
-import { Asset } from "../lib/types";
+import { Asset, MaintenanceRecord } from "../lib/types";
 
 export default function ReportsPage() {
   const { toast } = useToast();
   const db = useFirestore();
   
-  // Filter States
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // Fetch live assets
   const assetsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, "assets"), orderBy("name", "asc"));
   }, [db]);
 
-  const { data: assets, loading } = useCollection<Asset>(assetsQuery);
+  const maintenanceQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "maintenance"), orderBy("date", "desc"));
+  }, [db]);
 
-  // Derived Filtered Data
+  const { data: assets, loading: assetsLoading } = useCollection<Asset>(assetsQuery);
+  const { data: maintenanceRecords, loading: maintenanceLoading } = useCollection<MaintenanceRecord>(maintenanceQuery);
+
   const filteredAssets = useMemo(() => {
     if (!assets) return [];
     return assets.filter(asset => {
@@ -83,7 +87,6 @@ export default function ReportsPage() {
     });
   }, [assets, branchFilter, categoryFilter]);
 
-  // Aggregations based on filtered data
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredAssets.forEach(a => {
@@ -104,14 +107,34 @@ export default function ReportsPage() {
   const netBookValue = filteredAssets.reduce((s, a) => s + (a.currentBookValue || 0), 0);
   const criticalAssetsCount = filteredAssets.filter(a => a.status === 'Under Repair').length;
 
-  const maintenanceData = [
-    { month: 'Jan', cost: 45000 },
-    { month: 'Feb', cost: 52000 },
-    { month: 'Mar', cost: 38000 },
-    { month: 'Apr', cost: 65000 },
-    { month: 'May', cost: 48000 },
-    { month: 'Jun', cost: 72000 },
-  ];
+  const totalMaintenanceSpendYTD = useMemo(() => {
+    if (!maintenanceRecords) return 0;
+    const currentYear = new Date().getFullYear();
+    return maintenanceRecords
+      .filter(r => new Date(r.date).getFullYear() === currentYear)
+      .reduce((sum, r) => sum + (r.cost || 0), 0);
+  }, [maintenanceRecords]);
+
+  const monthlyMaintenanceTrends = useMemo(() => {
+    if (!maintenanceRecords) return [];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+    const stats: Record<string, number> = {};
+    
+    months.forEach(m => stats[m] = 0);
+    
+    maintenanceRecords
+      .filter(r => {
+        const d = new Date(r.date);
+        return d.getFullYear() === currentYear;
+      })
+      .forEach(r => {
+        const m = months[new Date(r.date).getMonth()];
+        stats[m] += r.cost || 0;
+      });
+      
+    return months.map(name => ({ name, cost: stats[name] }));
+  }, [maintenanceRecords]);
 
   const COLORS = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8', '#A5B4FC'];
 
@@ -184,7 +207,7 @@ export default function ReportsPage() {
     { title: "Fixed Asset Register (FAR)", desc: "Complete regulatory list with book values and procurement dates.", icon: FileText },
   ];
 
-  if (loading) {
+  if (assetsLoading || maintenanceLoading) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -299,7 +322,7 @@ export default function ReportsPage() {
         <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase tracking-wider">Maintenance Spend (YTD)</CardDescription>
-            <CardTitle className="text-2xl font-bold">₹3,20,000</CardTitle>
+            <CardTitle className="text-2xl font-bold">₹{totalMaintenanceSpendYTD.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">Historical Maintenance Ledger</div>
@@ -387,33 +410,26 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="font-headline text-lg">Monthly Maintenance Trends</CardTitle>
-              <CardDescription>Visualizing historical repair costs across the system.</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select defaultValue="2024">
-                <SelectTrigger className="w-[100px] h-8 text-xs">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                </SelectContent>
-              </Select>
+              <CardDescription>Visualizing historical repair costs from live cloud data.</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="h-[300px] pt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={maintenanceData}>
-              <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-              <RechartsTooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Cost']}
-              />
-              <Bar dataKey="cost" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {monthlyMaintenanceTrends.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyMaintenanceTrends}>
+                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                <RechartsTooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Cost']}
+                />
+                <Bar dataKey="cost" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground">No maintenance records found for the current year.</div>
+          )}
         </CardContent>
       </Card>
 

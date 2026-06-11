@@ -111,6 +111,20 @@
         "address": { "type": "string" }
       },
       "required": ["name"]
+    },
+    "MaintenanceRecord": {
+      "title": "Maintenance Record",
+      "description": "Log of asset service and repairs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assetId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "cost": { "type": "number" },
+        "provider": { "type": "string" }
+      },
+      "required": ["assetId", "date", "cost"]
     }
   },
   "auth": {
@@ -140,6 +154,10 @@
     "/vendors/{vendorId}": {
       "schema": "Vendor",
       "description": "Vendor master data."
+    },
+    "/maintenance/{recordId}": {
+      "schema": "MaintenanceRecord",
+      "description": "Historical repair logs."
     }
   }
 }
