@@ -15,7 +15,8 @@ import {
   Store,
   Users,
   ChevronRight,
-  Calculator
+  Calculator,
+  FileText
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -68,6 +69,11 @@ const mainItems = [
     title: "AI Audit Analyst",
     url: "/audit",
     icon: ShieldCheck,
+  },
+  {
+    title: "System Reports",
+    url: "/reports",
+    icon: FileText,
   },
 ];
 
