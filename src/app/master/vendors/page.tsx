@@ -1,64 +1,366 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Store, Plus, Trash2, Edit2, Phone, Mail } from "lucide-react";
+import { 
+  Store, 
+  Plus, 
+  Trash2, 
+  Edit2, 
+  Phone, 
+  Mail, 
+  User, 
+  MapPin, 
+  FileText, 
+  Search 
+} from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-const VENDORS = [
-  { id: "1", name: "Global Construction Corp", category: "Infrastructure", contact: "+91 98XXX XXX01", email: "info@gcc.com" },
-  { id: "2", name: "Swift Motors", category: "Fleet", contact: "+91 98XXX XXX02", email: "service@swift.in" },
-  { id: "3", name: "Dell Enterprise", category: "IT Hardware", contact: "+91 98XXX XXX03", email: "support@dell.com" },
-  { id: "4", name: "Precision Tools Ltd", category: "Machinery", contact: "+91 98XXX XXX04", email: "sales@prectools.com" },
+interface Vendor {
+  id: string;
+  name: string;
+  category: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  gstNumber: string;
+  address: string;
+}
+
+const INITIAL_VENDORS: Vendor[] = [
+  { 
+    id: "1", 
+    name: "Global Construction Corp", 
+    category: "Infrastructure", 
+    contactPerson: "Amit Shah",
+    phone: "+91 98XXX XXX01", 
+    email: "info@gcc.com",
+    gstNumber: "27AAAAA0000A1Z5",
+    address: "Sector 5, Industrial Estate, Pune"
+  },
+  { 
+    id: "2", 
+    name: "Swift Motors", 
+    category: "Fleet", 
+    contactPerson: "Rajesh Kumar",
+    phone: "+91 98XXX XXX02", 
+    email: "service@swift.in",
+    gstNumber: "27BBBBB1111B1Z6",
+    address: "Auto Hub, Chakan, MH"
+  },
+  { 
+    id: "3", 
+    name: "Dell Enterprise", 
+    category: "IT Hardware", 
+    contactPerson: "Sarah Johnson",
+    phone: "+91 98XXX XXX03", 
+    email: "support@dell.com",
+    gstNumber: "29CCCCC2222C1Z7",
+    address: "Technopark, Bangalore"
+  },
+  { 
+    id: "4", 
+    name: "Precision Tools Ltd", 
+    category: "Machinery", 
+    contactPerson: "Vikas Patil",
+    phone: "+91 98XXX XXX04", 
+    email: "sales@prectools.com",
+    gstNumber: "27DDDDD3333D1Z8",
+    address: "MIDC Ambad, Nashik"
+  },
 ];
 
 export default function VendorsPage() {
+  const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentVendor, setCurrentVendor] = useState<Vendor>({
+    id: "",
+    name: "",
+    category: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    gstNumber: "",
+    address: "",
+  });
+
+  const filteredVendors = vendors.filter(v => 
+    v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    v.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    v.gstNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleOpenAdd = () => {
+    setIsEditing(false);
+    setCurrentVendor({
+      id: "",
+      name: "",
+      category: "",
+      contactPerson: "",
+      phone: "",
+      email: "",
+      gstNumber: "",
+      address: "",
+    });
+    setIsOpen(true);
+  };
+
+  const handleOpenEdit = (vendor: Vendor) => {
+    setIsEditing(true);
+    setCurrentVendor(vendor);
+    setIsOpen(true);
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentVendor.name) return;
+
+    if (isEditing) {
+      setVendors(vendors.map(v => v.id === currentVendor.id ? currentVendor : v));
+    } else {
+      const newVendor = {
+        ...currentVendor,
+        id: Math.random().toString(36).substr(2, 9),
+      };
+      setVendors([...vendors, newVendor]);
+    }
+    setIsOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setVendors(vendors.filter(v => v.id !== id));
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary font-headline flex items-center gap-2">
             <Store className="h-8 w-8 text-accent" />
             Vendors & Suppliers
           </h1>
-          <p className="text-muted-foreground">Primary vendors for asset procurement and maintenance.</p>
+          <p className="text-muted-foreground">Manage procurement partners and service providers.</p>
         </div>
-        <Button className="bg-primary">
-          <Plus className="h-4 w-4 mr-2" /> Add Vendor
-        </Button>
+        
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <Button onClick={handleOpenAdd} className="bg-primary hover:bg-primary/90">
+            <Plus className="h-4 w-4 mr-2" /> Add Vendor
+          </Button>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{isEditing ? "Edit Vendor" : "Add New Vendor"}</DialogTitle>
+              <DialogDescription>
+                Enter the vendor's professional details and contact information.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSave}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Vendor Name</Label>
+                    <Input 
+                      id="name" 
+                      placeholder="e.g. Acme Corp" 
+                      value={currentVendor.name}
+                      onChange={(e) => setCurrentVendor({ ...currentVendor, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Input 
+                      id="category" 
+                      placeholder="e.g. IT Equipment" 
+                      value={currentVendor.category}
+                      onChange={(e) => setCurrentVendor({ ...currentVendor, category: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactPerson">Contact Person</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="contactPerson" 
+                        className="pl-10"
+                        placeholder="Full Name" 
+                        value={currentVendor.contactPerson}
+                        onChange={(e) => setCurrentVendor({ ...currentVendor, contactPerson: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="gstNumber">GST Number</Label>
+                    <div className="relative">
+                      <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="gstNumber" 
+                        className="pl-10 font-code"
+                        placeholder="15-digit GSTIN" 
+                        value={currentVendor.gstNumber}
+                        onChange={(e) => setCurrentVendor({ ...currentVendor, gstNumber: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="phone" 
+                        className="pl-10"
+                        placeholder="+91 XXXXX XXXXX" 
+                        value={currentVendor.phone}
+                        onChange={(e) => setCurrentVendor({ ...currentVendor, phone: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="email" 
+                        type="email"
+                        className="pl-10"
+                        placeholder="vendor@example.com" 
+                        value={currentVendor.email}
+                        onChange={(e) => setCurrentVendor({ ...currentVendor, email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="address">Registered Address</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Textarea 
+                      id="address" 
+                      className="pl-10 min-h-[80px]"
+                      placeholder="Full office or warehouse address..." 
+                      value={currentVendor.address}
+                      onChange={(e) => setCurrentVendor({ ...currentVendor, address: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">{isEditing ? "Update Vendor" : "Save Vendor"}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardHeader className="pb-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search by vendor name, GST, or contact person..." 
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Vendor Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Contact Info</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="font-bold">Vendor & GST</TableHead>
+                <TableHead className="font-bold">Contact Person</TableHead>
+                <TableHead className="font-bold">Contact Details</TableHead>
+                <TableHead className="font-bold">Address</TableHead>
+                <TableHead className="text-right font-bold">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {VENDORS.map((vendor) => (
-                <TableRow key={vendor.id}>
-                  <TableCell className="font-medium">{vendor.name}</TableCell>
-                  <TableCell>{vendor.category}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {vendor.contact}</span>
-                      <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {vendor.email}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8"><Edit2 className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-3 w-3" /></Button>
-                    </div>
+              {filteredVendors.length > 0 ? (
+                filteredVendors.map((vendor) => (
+                  <TableRow key={vendor.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-sm">{vendor.name}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase">{vendor.category}</span>
+                        <span className="text-[10px] font-code bg-secondary/10 text-secondary w-fit px-1 mt-1 rounded">
+                          {vendor.gstNumber || "No GST"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="h-3 w-3 text-muted-foreground" />
+                        {vendor.contactPerson || "Not Assigned"}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> {vendor.phone || "N/A"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Mail className="h-3 w-3" /> {vendor.email || "N/A"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-start gap-1 max-w-[200px]">
+                        <MapPin className="h-3 w-3 mt-1 shrink-0 text-muted-foreground" />
+                        <span className="text-xs line-clamp-2">{vendor.address || "No Address"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 hover:bg-accent/20"
+                          onClick={() => handleOpenEdit(vendor)}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(vendor.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    No vendors found matching your search.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
