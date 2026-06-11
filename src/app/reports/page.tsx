@@ -3,10 +3,8 @@
 import { useState, useMemo } from "react";
 import { 
   BarChart3, 
-  Download, 
   Filter, 
   FileText,
-  TrendingUp,
   AlertCircle,
   Calculator,
   ArrowLeftRight,
@@ -46,6 +44,13 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription 
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useCollection } from "@/firebase";
