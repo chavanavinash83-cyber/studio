@@ -551,7 +551,7 @@ export default function ReportsPage() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Asset Count by Category</CardTitle>
-            <CardDescription>Volume distribution for filtered criteria.</CardDescription>
+            <CardDescription>Volume distribution. Click slice to drill down.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {categoryData.length > 0 ? (
@@ -565,6 +565,17 @@ export default function ReportsPage() {
                     outerRadius={100}
                     paddingAngle={5}
                     dataKey="value"
+                    className="cursor-pointer"
+                    onClick={(data) => {
+                      if (data && data.name) {
+                        setCategoryFilter(data.name);
+                        setActiveDetail({
+                          title: `Category Details: ${data.name}`,
+                          description: `Viewing all assets assigned to the ${data.name} category.`,
+                          type: 'assets'
+                        });
+                      }
+                    }}
                   >
                     {categoryData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -583,7 +594,7 @@ export default function ReportsPage() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Acquisition Value by Branch</CardTitle>
-            <CardDescription>Capital investment distribution (INR).</CardDescription>
+            <CardDescription>Capital investment. Click bar to drill down.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {valueByBranch.length > 0 ? (
@@ -596,7 +607,21 @@ export default function ReportsPage() {
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Investment']}
                   />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar 
+                    dataKey="value" 
+                    radius={[0, 4, 4, 0]} 
+                    className="cursor-pointer"
+                    onClick={(data) => {
+                      if (data && data.name) {
+                        setBranchFilter(data.name);
+                        setActiveDetail({
+                          title: `Branch Details: ${data.name}`,
+                          description: `Viewing all assets located at the ${data.name} branch.`,
+                          type: 'assets'
+                        });
+                      }
+                    }}
+                  >
                     {valueByBranch.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
