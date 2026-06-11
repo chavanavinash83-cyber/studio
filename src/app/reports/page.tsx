@@ -14,7 +14,13 @@ import {
   Calculator,
   ArrowLeftRight,
   Store,
-  Wrench
+  Wrench,
+  MapPin,
+  Tags,
+  ShieldCheck,
+  Package,
+  FileSpreadsheet,
+  FileDown
 } from "lucide-react";
 import { 
   Bar, 
@@ -36,8 +42,11 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ReportsPage() {
+  const { toast } = useToast();
+
   // Mock Data Aggregations
   const categoryData = [
     { name: 'Buildings', value: MOCK_ASSETS.filter(a => a.category === 'Buildings').length },
@@ -64,6 +73,26 @@ export default function ReportsPage() {
 
   const COLORS = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8', '#A5B4FC'];
 
+  const handleExport = (type: 'PDF' | 'Excel') => {
+    toast({
+      title: `Exporting ${type}...`,
+      description: "Your system report is being generated and will download shortly.",
+    });
+  };
+
+  const reportTemplates = [
+    { title: "Branch Wise Asset Report", desc: "Detailed breakdown of assets grouped by geographical locations.", icon: MapPin },
+    { title: "Category Wise Report", desc: "Consolidated list of assets categorized by their asset classes.", icon: Tags },
+    { title: "Depreciation Report", desc: "Annual WDV calculation and fiscal year depreciation schedules.", icon: Calculator },
+    { title: "Vendor Wise Report", desc: "Procurement history and spend analysis per supplier.", icon: Store },
+    { title: "Warranty Expiry Report", desc: "Active alerts for assets reaching warranty limits.", icon: AlertCircle },
+    { title: "Dead Stock Report", desc: "Assets classified as disposed or out of service for long durations.", icon: Package },
+    { title: "Repair Cost Report", desc: "Maintenance ledger with total repair spend per unit.", icon: Wrench },
+    { title: "Transfer Register", desc: "Digital audit trail of all inter-branch asset movements.", icon: ArrowLeftRight },
+    { title: "Audit Register", desc: "Historical records of physical verification and AI-led audits.", icon: ShieldCheck },
+    { title: "Fixed Asset Register (FAR)", desc: "Complete regulatory list with book values and procurement dates.", icon: FileText },
+  ];
+
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -79,11 +108,19 @@ export default function ReportsPage() {
           <Button variant="outline" size="sm" className="h-9">
             <Filter className="mr-2 h-4 w-4" /> Filter
           </Button>
-          <Button variant="outline" size="sm" className="h-9">
-            <Calendar className="mr-2 h-4 w-4" /> Period
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-9 border-green-600 text-green-700 hover:bg-green-50"
+            onClick={() => handleExport('Excel')}
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel
           </Button>
-          <Button className="h-9 bg-accent hover:bg-accent/90">
-            <Download className="mr-2 h-4 w-4" /> Export PDF
+          <Button 
+            className="h-9 bg-accent hover:bg-accent/90"
+            onClick={() => handleExport('PDF')}
+          >
+            <FileDown className="mr-2 h-4 w-4" /> Export PDF
           </Button>
         </div>
       </div>
@@ -229,19 +266,16 @@ export default function ReportsPage() {
             <FileText className="h-5 w-5 text-primary" />
             Available Report Templates
           </CardTitle>
-          <CardDescription>Downloadable compliance and management records.</CardDescription>
+          <CardDescription>Select a category to generate a comprehensive record.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { title: "Fixed Asset Register (FAR)", desc: "Complete list with WDV and procurement details.", icon: FileText },
-              { title: "Depreciation Schedule", desc: "Annual WDV calculation report for tax filings.", icon: Calculator },
-              { title: "Transfer Audit Trail", desc: "History of all branch movements with authorizations.", icon: ArrowLeftRight },
-              { title: "Warranty Expiry List", desc: "Assets with warranties ending in next 90 days.", icon: AlertCircle },
-              { title: "Vendor Performance", desc: "Spend and service history analysis per supplier.", icon: Store },
-              { title: "Maintenance Cost Ledger", desc: "Detailed breakdown of repair expenses per unit.", icon: Wrench },
-            ].map((report, i) => (
-              <div key={i} className="flex items-start gap-3 p-4 border rounded-xl hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group">
+            {reportTemplates.map((report, i) => (
+              <div 
+                key={i} 
+                className="flex items-start gap-3 p-4 border rounded-xl hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                onClick={() => handleExport('PDF')}
+              >
                 <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                   <report.icon className="h-4 w-4" />
                 </div>
