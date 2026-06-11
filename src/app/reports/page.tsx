@@ -4,10 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { MOCK_ASSETS } from "../lib/mock-data";
 import { 
   BarChart3, 
-  PieChart, 
   Download, 
   Filter, 
-  Calendar,
   FileText,
   TrendingUp,
   AlertCircle,
@@ -73,11 +71,57 @@ export default function ReportsPage() {
 
   const COLORS = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8', '#A5B4FC'];
 
-  const handleExport = (type: 'PDF' | 'Excel') => {
+  const handleExport = (type: 'PDF' | 'Excel', reportName: string = "System_Report") => {
     toast({
-      title: `Exporting ${type}...`,
-      description: "Your system report is being generated and will download shortly.",
+      title: `Generating ${type}...`,
+      description: `Preparing ${reportName} for download.`,
     });
+
+    // Simulate file generation and download
+    setTimeout(() => {
+      let content = "";
+      let fileName = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+      let mimeType = "";
+
+      if (type === 'Excel') {
+        // Generate a CSV
+        const headers = "ID,Name,SerialNumber,Category,Location,PurchaseValue,BookValue\n";
+        const rows = MOCK_ASSETS.map(a => 
+          `${a.id},${a.name},${a.serialNumber},${a.category},${a.location},${a.purchaseValue},${a.currentBookValue}`
+        ).join("\n");
+        content = headers + rows;
+        fileName += ".csv";
+        mimeType = "text/csv";
+      } else {
+        // Generate a simple text-based summary for PDF simulation
+        content = `SAMPATTIPRO - ${reportName}\n`;
+        content += `Generated on: ${new Date().toLocaleString()}\n`;
+        content += `-------------------------------------------\n\n`;
+        MOCK_ASSETS.forEach(a => {
+          content += `Asset: ${a.name} (${a.id})\n`;
+          content += `Location: ${a.location} | Category: ${a.category}\n`;
+          content += `Value: ₹${a.currentBookValue.toLocaleString()}\n`;
+          content += `-------------------------------------------\n`;
+        });
+        fileName += ".txt"; // Simulated PDF as Text
+        mimeType = "text/plain";
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download Complete",
+        description: `Successfully exported ${fileName}`,
+      });
+    }, 1500);
   };
 
   const reportTemplates = [
@@ -112,13 +156,13 @@ export default function ReportsPage() {
             variant="outline" 
             size="sm" 
             className="h-9 border-green-600 text-green-700 hover:bg-green-50"
-            onClick={() => handleExport('Excel')}
+            onClick={() => handleExport('Excel', 'Global_Asset_Inventory')}
           >
             <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel
           </Button>
           <Button 
             className="h-9 bg-accent hover:bg-accent/90"
-            onClick={() => handleExport('PDF')}
+            onClick={() => handleExport('PDF', 'Global_Asset_Summary')}
           >
             <FileDown className="mr-2 h-4 w-4" /> Export PDF
           </Button>
@@ -274,7 +318,7 @@ export default function ReportsPage() {
               <div 
                 key={i} 
                 className="flex items-start gap-3 p-4 border rounded-xl hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
-                onClick={() => handleExport('PDF')}
+                onClick={() => handleExport('PDF', report.title)}
               >
                 <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                   <report.icon className="h-4 w-4" />
