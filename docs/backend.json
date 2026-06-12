@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -45,6 +46,8 @@
         "installationDate": { "type": "string" },
         "purchaseValue": { "type": "number" },
         "currentBookValue": { "type": "number" },
+        "previousBookValue": { "type": "number", "description": "Book value before the last depreciation run." },
+        "lastDepreciationDate": { "type": "string", "description": "ISO date of the last successful depreciation process." },
         "location": { "type": "string" },
         "department": { "type": "string" },
         "status": { "type": "string" },

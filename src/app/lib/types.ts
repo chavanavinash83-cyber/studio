@@ -1,3 +1,4 @@
+
 export type BranchLocation = string;
 
 export type AssetCategory = string;
@@ -15,6 +16,8 @@ export interface Asset {
   installationDate?: string;
   purchaseValue: number;
   currentBookValue: number;
+  previousBookValue?: number;
+  lastDepreciationDate?: string;
   location: BranchLocation;
   department: string;
   status: AssetStatus;
@@ -25,6 +28,7 @@ export interface Asset {
   depreciationRate: number; // 5, 10, 15, or 33.33
   assetPhotoUrl?: string;
   invoiceUrl?: string;
+  updatedAt?: any;
 }
 
 export interface MasterCategory {
