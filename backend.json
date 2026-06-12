@@ -1,0 +1,163 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Extended user information for AMBIKA AMS access control.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique Firebase Auth ID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Super Admin", "Branch Manager", "Auditor", "IT Admin"],
+          "description": "System access level."
+        },
+        "access": {
+          "type": "string",
+          "description": "Primary branch location or scope assigned to the user."
+        }
+      },
+      "required": ["email", "name"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Enterprise asset record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "category": { "type": "string" },
+        "purchaseDate": { "type": "string" },
+        "installationDate": { "type": "string" },
+        "purchaseValue": { "type": "number" },
+        "currentBookValue": { "type": "number" },
+        "previousBookValue": { "type": "number" },
+        "lastDepreciationDate": { "type": "string" },
+        "location": { "type": "string" },
+        "department": { "type": "string" },
+        "status": { "type": "string" },
+        "warrantyPeriodMonths": { "type": "number" },
+        "warrantyExpiry": { "type": "string" },
+        "vendorName": { "type": "string" },
+        "depreciationRate": { "type": "number" },
+        "assetPhotoUrl": { "type": "string" },
+        "invoiceUrl": { "type": "string" }
+      },
+      "required": ["name", "serialNumber", "category", "location"]
+    },
+    "AssetCategory": {
+      "title": "Asset Category",
+      "description": "Depreciation settings for asset classes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "rate": { "type": "number" },
+        "life": { "type": "string" },
+        "method": { "type": "string", "enum": ["WDV", "Straight Line", "Purchase Amount", "No Depreciation"] }
+      },
+      "required": ["name", "rate", "method"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Organizational unit or location.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "type": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["name", "code"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Organizational unit within a branch.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "branch": { "type": "string" }
+      },
+      "required": ["name", "branch"]
+    },
+    "Vendor": {
+      "title": "Vendor",
+      "description": "Procurement partner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "gstNumber": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Firm": {
+      "title": "Firm",
+      "description": "Parent company or entity record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "gstNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "MaintenanceRecord": {
+      "title": "Maintenance Record",
+      "description": "Log of asset service and repairs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assetId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "cost": { "type": "number" },
+        "provider": { "type": "string" }
+      },
+      "required": ["assetId", "date", "cost"]
+    },
+    "TransferRecord": {
+      "title": "Transfer Record",
+      "description": "Log of asset movements between branches.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assetId": { "type": "string" },
+        "assetName": { "type": "string" },
+        "fromLocation": { "type": "string" },
+        "toLocation": { "type": "string" },
+        "transferDate": { "type": "string", "format": "date" },
+        "authorizedBy": { "type": "string" },
+        "remarks": { "type": "string" }
+      },
+      "required": ["assetId", "fromLocation", "toLocation", "transferDate"]
+    }
+  }
+}
