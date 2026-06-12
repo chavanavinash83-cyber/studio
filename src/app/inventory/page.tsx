@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info, CheckCircle, Loader2, Briefcase, Store } from "lucide-react";
+import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info, CheckCircle, Loader2, Briefcase, Sparkles } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -104,6 +104,7 @@ export default function InventoryPage() {
     invoiceUrl: "",
   });
 
+  // Automatically update warranty expiry based on installation date
   useEffect(() => {
     if (currentAsset.installationDate && currentAsset.warrantyPeriodMonths !== undefined) {
       const iDate = parseISO(currentAsset.installationDate);
@@ -114,11 +115,18 @@ export default function InventoryPage() {
     }
   }, [currentAsset.installationDate, currentAsset.warrantyPeriodMonths]);
 
+  // AUTOMATICALLY FETCH DEPRECIATION RATE FROM MASTER CATEGORY
   useEffect(() => {
-    if (currentAsset.category && categories) {
-      const cat = categories.find(c => c.name === currentAsset.category);
-      if (cat) {
-        setCurrentAsset(prev => ({ ...prev, depreciationRate: cat.rate }));
+    if (currentAsset.category && categories && categories.length > 0) {
+      const matchedCategory = categories.find(c => c.name === currentAsset.category);
+      if (matchedCategory) {
+        setCurrentAsset(prev => {
+          // Only update if it's different to avoid loops
+          if (prev.depreciationRate !== matchedCategory.rate) {
+            return { ...prev, depreciationRate: matchedCategory.rate };
+          }
+          return prev;
+        });
       }
     }
   }, [currentAsset.category, categories]);
@@ -135,12 +143,13 @@ export default function InventoryPage() {
 
   const handleOpenAdd = () => {
     setIsEditing(false);
+    const firstCat = categories?.[0];
     setCurrentAsset({
       name: "",
       brand: "",
       model: "",
       serialNumber: "",
-      category: categories?.[0]?.name || "",
+      category: firstCat?.name || "",
       location: branches?.[0]?.name || "",
       department: departments?.[0]?.name || "",
       status: "Active",
@@ -148,7 +157,7 @@ export default function InventoryPage() {
       installationDate: format(new Date(), 'yyyy-MM-dd'),
       purchaseValue: 0,
       currentBookValue: 0,
-      depreciationRate: 15,
+      depreciationRate: firstCat?.rate || 15,
       warrantyPeriodMonths: 12,
       warrantyExpiry: "",
       vendorName: vendors?.[0]?.name || "",
@@ -377,8 +386,8 @@ export default function InventoryPage() {
                       <SelectValue placeholder="Select Department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments?.map(d => (
-                        <SelectItem key={d.id} value={d.name}>{d.name} ({d.branch})</SelectItem>
+                      {departments?.filter(d => d.branch === currentAsset.location || !currentAsset.location).map(d => (
+                        <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -544,13 +553,19 @@ export default function InventoryPage() {
                     />
                   </div>
                   <div className="md:col-span-2 space-y-2">
-                    <Label htmlFor="deprate">Depreciation Rate (%)</Label>
+                    <Label htmlFor="deprate" className="flex items-center gap-2">
+                      Depreciation Rate (%)
+                      <Badge variant="outline" className="text-[10px] font-bold text-accent border-accent/20 bg-accent/5">
+                        <Sparkles className="h-2 w-2 mr-1" /> Auto-fetched
+                      </Badge>
+                    </Label>
                     <Input 
                       id="deprate" 
                       type="number" 
                       step="0.01"
+                      readOnly
+                      className="bg-muted cursor-not-allowed font-bold text-primary"
                       value={currentAsset.depreciationRate} 
-                      onChange={e => setCurrentAsset({...currentAsset, depreciationRate: parseFloat(e.target.value) || 0})}
                     />
                   </div>
                 </div>
