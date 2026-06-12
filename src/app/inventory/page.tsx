@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -121,7 +120,6 @@ export default function InventoryPage() {
       const matchedCategory = categories.find(c => c.name === currentAsset.category);
       if (matchedCategory) {
         setCurrentAsset(prev => {
-          // Only update if it's different to avoid loops
           if (prev.depreciationRate !== matchedCategory.rate) {
             return { ...prev, depreciationRate: matchedCategory.rate };
           }
@@ -265,12 +263,12 @@ export default function InventoryPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Asset Inventory</h1>
-          <p className="text-muted-foreground">Real-time cloud management for enterprise hardware and real estate.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary font-headline">Asset Inventory</h1>
+          <p className="text-sm text-muted-foreground">Real-time cloud management for enterprise hardware.</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <Button onClick={handleOpenAdd} className="bg-accent text-white hover:bg-accent/90">
+          <Button onClick={handleOpenAdd} className="w-full md:w-auto bg-accent text-white hover:bg-accent/90">
             <Plus className="h-4 w-4 mr-2" /> Add New Asset
           </Button>
           <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
@@ -415,7 +413,7 @@ export default function InventoryPage() {
                   <CalendarIcon className="h-4 w-4" />
                   Procurement & Warranty
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="pdate">Purchase Date</Label>
                     <Input 
@@ -533,7 +531,7 @@ export default function InventoryPage() {
                 <h4 className="text-sm font-bold mb-4 flex items-center gap-2 text-primary">
                   Financial Details
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="pval">Purchase Value (₹)</Label>
                     <Input 
@@ -552,7 +550,7 @@ export default function InventoryPage() {
                       onChange={e => setCurrentAsset({...currentAsset, currentBookValue: parseFloat(e.target.value) || 0})}
                     />
                   </div>
-                  <div className="md:col-span-2 space-y-2">
+                  <div className="sm:col-span-2 space-y-2">
                     <Label htmlFor="deprate" className="flex items-center gap-2">
                       Depreciation Rate (%)
                       <Badge variant="outline" className="text-[10px] font-bold text-accent border-accent/20 bg-accent/5">
@@ -572,17 +570,19 @@ export default function InventoryPage() {
               </div>
 
               <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t mt-6">
-                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
-                <Button type="submit" className="bg-primary" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Saving...
-                    </>
-                  ) : (
-                    isEditing ? "Update Asset" : "Register Asset"
-                  )}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full justify-end">
+                  <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting} className="w-full sm:w-auto">Cancel</Button>
+                  <Button type="submit" className="bg-primary w-full sm:w-auto" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      isEditing ? "Update Asset" : "Register Asset"
+                    )}
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -593,7 +593,7 @@ export default function InventoryPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search by name, brand, model or serial..." 
+            placeholder="Search assets..." 
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -622,130 +622,132 @@ export default function InventoryPage() {
             <p>Syncing with cloud...</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="font-bold">Asset Info</TableHead>
-                <TableHead className="font-bold">Branch & Dept</TableHead>
-                <TableHead className="font-bold">Category</TableHead>
-                <TableHead className="font-bold">Status</TableHead>
-                <TableHead className="font-bold text-right">Procurement Date</TableHead>
-                <TableHead className="font-bold text-right">Warranty Expiry</TableHead>
-                <TableHead className="w-[120px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAssets.length > 0 ? (
-                filteredAssets.map((asset) => (
-                  <TableRow key={asset.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm leading-tight">{asset.name}</span>
-                        <span className="text-[11px] text-muted-foreground font-medium">
-                          {asset.brand ? `${asset.brand} ` : ""}{asset.model || "No Model"}
+          <div className="overflow-x-auto">
+            <Table className="min-w-[800px]">
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="font-bold">Asset Info</TableHead>
+                  <TableHead className="font-bold">Branch & Dept</TableHead>
+                  <TableHead className="font-bold">Category</TableHead>
+                  <TableHead className="font-bold">Status</TableHead>
+                  <TableHead className="font-bold text-right">Procurement</TableHead>
+                  <TableHead className="font-bold text-right">Warranty</TableHead>
+                  <TableHead className="w-[120px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAssets.length > 0 ? (
+                  filteredAssets.map((asset) => (
+                    <TableRow key={asset.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm leading-tight">{asset.name}</span>
+                          <span className="text-[11px] text-muted-foreground font-medium">
+                            {asset.brand ? `${asset.brand} ` : ""}{asset.model || ""}
+                          </span>
+                          <span className="text-[10px] font-code text-primary uppercase mt-1 tracking-wider">{asset.serialNumber}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                            <Building2 className="h-3 w-3 text-accent" />
+                            {asset.location}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase">
+                             <Briefcase className="h-2.5 w-2.5" />
+                             {asset.department}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded bg-secondary/10 text-secondary">
+                            {getCategoryIcon(asset.category)}
+                          </div>
+                          <span className="text-[11px] font-medium">{asset.category}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(asset.status)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs font-medium">{asset.purchaseDate}</span>
+                          <span className="text-[10px] text-muted-foreground">Inst: {asset.installationDate}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={`text-xs font-bold ${
+                          asset.warrantyExpiry && new Date(asset.warrantyExpiry) < new Date() 
+                            ? "text-destructive" 
+                            : "text-green-600"
+                        }`}>
+                          {asset.warrantyExpiry || "N/A"}
                         </span>
-                        <span className="text-[10px] font-code text-primary uppercase mt-1 tracking-wider">{asset.serialNumber}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <Building2 className="h-3 w-3 text-accent" />
-                          {asset.location}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase">
-                           <Briefcase className="h-2.5 w-2.5" />
-                           {asset.department}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded bg-secondary/10 text-secondary">
-                          {getCategoryIcon(asset.category)}
-                        </div>
-                        <span className="text-[11px] font-medium">{asset.category}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(asset.status)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs font-medium">{asset.purchaseDate}</span>
-                        <span className="text-[10px] text-muted-foreground">Inst: {asset.installationDate}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={`text-xs font-bold ${
-                        asset.warrantyExpiry && new Date(asset.warrantyExpiry) < new Date() 
-                          ? "text-destructive" 
-                          : "text-green-600"
-                      }`}>
-                        {asset.warrantyExpiry || "N/A"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="QR Label">
-                              <QrCode className="h-4 w-4 text-primary" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                              <DialogTitle className="font-headline text-center">Asset QR Code</DialogTitle>
-                            </DialogHeader>
-                            <div className="flex flex-col items-center justify-center p-6 space-y-4">
-                              <div className="bg-white p-4 border-4 border-primary rounded-xl">
-                                <svg width="150" height="150" viewBox="0 0 100 100" className="text-primary">
-                                  <path d="M0 0h30v30H0zM70 0h30v30H70zM0 70h30v100H0z" fill="currentColor" />
-                                  <rect x="10" y="10" width="10" height="10" fill="white" />
-                                  <rect x="80" y="10" width="10" height="10" fill="white" />
-                                  <rect x="10" y="80" width="10" height="10" fill="white" />
-                                  <path d="M40 0h20v10H40zM40 20h10v10H40zM60 20h10v10H60zM30 40h10v10H30zM50 40h20v10H50zM80 40h20v10H80zM0 60h10v10H0zM20 60h10v10H20zM40 60h30v10H40zM90 60h10v10H90zM30 70h10v10H30zM50 70h10v10H50z" fill="currentColor" />
-                                </svg>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title="QR Label">
+                                <QrCode className="h-4 w-4 text-primary" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle className="font-headline text-center">Asset QR Code</DialogTitle>
+                              </DialogHeader>
+                              <div className="flex flex-col items-center justify-center p-6 space-y-4">
+                                <div className="bg-white p-4 border-4 border-primary rounded-xl">
+                                  <svg width="150" height="150" viewBox="0 0 100 100" className="text-primary">
+                                    <path d="M0 0h30v30H0zM70 0h30v30H70zM0 70h30v100H0z" fill="currentColor" />
+                                    <rect x="10" y="10" width="10" height="10" fill="white" />
+                                    <rect x="80" y="10" width="10" height="10" fill="white" />
+                                    <rect x="10" y="80" width="10" height="10" fill="white" />
+                                    <path d="M40 0h20v10H40zM40 20h10v10H40zM60 20h10v10H60zM30 40h10v10H30zM50 40h20v10H50zM80 40h20v10H80zM0 60h10v10H0zM20 60h10v10H20zM40 60h30v10H40zM90 60h10v10H90zM30 70h10v10H30zM50 70h10v10H50z" fill="currentColor" />
+                                  </svg>
+                                </div>
+                                <div className="text-center">
+                                  <p className="font-bold">{asset.name}</p>
+                                  <p className="text-xs text-muted-foreground font-code">{asset.serialNumber}</p>
+                                </div>
+                                <Button className="w-full">Download Label</Button>
                               </div>
-                              <div className="text-center">
-                                <p className="font-bold">{asset.name}</p>
-                                <p className="text-xs text-muted-foreground font-code">{asset.serialNumber}</p>
-                              </div>
-                              <Button className="w-full">Download Label</Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-primary/10"
-                          onClick={() => handleOpenEdit(asset)}
-                        >
-                          <Edit2 className="h-3.5 w-3.5 text-primary" />
-                        </Button>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-destructive/10 text-destructive"
-                          onClick={() => handleDelete(asset.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-primary/10"
+                            onClick={() => handleOpenEdit(asset)}
+                          >
+                            <Edit2 className="h-3.5 w-3.5 text-primary" />
+                          </Button>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-destructive/10 text-destructive"
+                            onClick={() => handleDelete(asset.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow key="no-assets">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      No assets found matching your search.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow key="no-assets">
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    No assets found matching your search.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>

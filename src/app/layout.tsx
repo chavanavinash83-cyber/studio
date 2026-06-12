@@ -1,19 +1,31 @@
-
 'use client';
 
 import './globals.css';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { initializeFirebase, FirebaseClientProvider } from '@/firebase';
+import { Building2 } from 'lucide-react';
 
 const { firebaseApp, firestore, auth } = initializeFirebase();
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full flex-col md:flex-row">
         <AppSidebar />
+        
+        {/* Mobile Header */}
+        <header className="flex h-16 items-center justify-between border-b bg-sidebar px-4 md:hidden text-white shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-headline text-lg font-bold tracking-tight">AMBIKA AMS</span>
+          </div>
+          <SidebarTrigger className="text-white hover:bg-white/10" />
+        </header>
+
         <main className="flex-1 overflow-auto bg-background p-4 md:p-8">
           {children}
         </main>
