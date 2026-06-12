@@ -1,11 +1,9 @@
-
 "use client";
 
 import {
   LayoutDashboard,
   Package,
   ArrowLeftRight,
-  ShieldCheck,
   Wrench,
   Settings,
   Building2,
@@ -16,8 +14,7 @@ import {
   Users,
   ChevronRight,
   Calculator,
-  FileText,
-  Landmark
+  FileText
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -67,11 +64,6 @@ const mainItems = [
     icon: Wrench,
   },
   {
-    title: "AI Audit Analyst",
-    url: "/audit",
-    icon: ShieldCheck,
-  },
-  {
     title: "System Reports",
     url: "/reports",
     icon: FileText,
@@ -79,11 +71,6 @@ const mainItems = [
 ];
 
 const masterItems = [
-  {
-    title: "Firm Details",
-    url: "/master/firms",
-    icon: Landmark,
-  },
   {
     title: "Asset Categories",
     url: "/master/categories",

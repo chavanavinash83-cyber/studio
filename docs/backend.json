@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -124,22 +123,6 @@
         "provider": { "type": "string" }
       },
       "required": ["assetId", "date", "cost"]
-    },
-    "Firm": {
-      "title": "Firm Details",
-      "description": "Information about the parent company or firm entities.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "registrationNumber": { "type": "string" },
-        "gstNumber": { "type": "string" },
-        "address": { "type": "string" },
-        "contactPerson": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string" }
-      },
-      "required": ["name"]
     }
   },
   "auth": {
@@ -173,10 +156,6 @@
     "/maintenance/{recordId}": {
       "schema": "MaintenanceRecord",
       "description": "Historical repair logs."
-    },
-    "/firms/{firmId}": {
-      "schema": "Firm",
-      "description": "Firm master data."
     }
   }
 }
