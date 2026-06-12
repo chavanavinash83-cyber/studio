@@ -14,7 +14,8 @@ import {
   Users,
   ChevronRight,
   Calculator,
-  FileText
+  FileText,
+  Database
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -67,6 +68,11 @@ const mainItems = [
     title: "System Reports",
     url: "/reports",
     icon: FileText,
+  },
+  {
+    title: "Data Backup",
+    url: "/backup",
+    icon: Database,
   },
 ];
 
