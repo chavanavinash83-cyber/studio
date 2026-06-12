@@ -12,14 +12,14 @@ To run this project on your own computer:
    ```bash
    npm install
    ```
-4. **Environment Variables**: Ensure your `.env` file contains the Firebase configuration we set up in the Studio. It should look like this:
+4. **Environment Variables**: Ensure your `.env` file contains the Firebase configuration:
    ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyAPS-q7WVTizbRB7aquiuMsVvz5fIbsp8I
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=studio-9559093006-80613.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=studio-9559093006-80613
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=studio-9559093006-80613.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=49324742200
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:49324742200:web:deda6d4826ca6ca09178cd
    ```
 5. **Run Development Server**:
    ```bash
@@ -29,43 +29,38 @@ To run this project on your own computer:
 
 ---
 
-## 🚀 Deployment: Firebase App Hosting (Recommended)
+## 🚀 Hosting on Firebase (App Hosting)
 
-To publish your app for free using the modern Firebase stack:
+For Next.js 15, **Firebase App Hosting** is the best way to deploy.
 
-### Step 1: Push your code to GitHub
-1. Create a new repository on [GitHub](https://github.com/new).
-2. Open your terminal in this project folder.
-3. Run the following commands:
+### Step 1: Push to GitHub
+1. Create a new repository on GitHub.
+2. Initialize and push your code:
    ```bash
    git init
    git add .
-   git commit -m "Initial commit for AMBIKA AMS"
+   git commit -m "Deploy AMBIKA AMS"
    git branch -M main
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
    git push -u origin main
    ```
 
-### Step 2: Enable App Hosting
+### Step 2: Enable App Hosting in Firebase Console
 1. Go to the [Firebase Console](https://console.firebase.google.com/).
-2. Select your project: **studio-9559093006-80613**.
-3. In the left sidebar, navigate to **Build > App Hosting**.
-4. Click **Get Started**.
+2. Select project: **studio-9559093006-80613**.
+3. Go to **Build > App Hosting**.
+4. Click **Get Started** and connect your GitHub account.
+5. Select your repository and the `main` branch.
 
-### Step 3: Connect to GitHub
-1. Click **Connect to GitHub**.
-2. Follow the prompts to authorize Firebase.
-3. Select your repository.
-
-### Step 4: Configure Environment Variables (CRITICAL)
-Your production build will fail if the cloud doesn't know your keys.
-1. In the App Hosting dashboard under **Settings > Environment Variables**, add every key from your `.env` file.
-2. Firebase will use these values during the build process to connect to your database.
+### Step 3: Configure Environment Variables (CRITICAL)
+Your deployment will fail if the cloud doesn't have your keys.
+1. In the App Hosting dashboard settings, go to **Environment Variables**.
+2. Add all the `NEXT_PUBLIC_...` keys from your `.env` file there.
 
 ---
 
 ## 🛠️ Database Setup
-Ensure you have enabled **Authentication** (Email/Password) and **Cloud Firestore** in the Firebase Console. Set your Firestore rules to "Test Mode" or configure them properly for production as defined in the app logic.
+Ensure you have enabled **Authentication** (Email/Password) and **Cloud Firestore** in the Firebase Console for project **studio-9559093006-80613**.
 
 ## 🛡️ Support
-For technical issues with the application logic, refer to the project structure documentation in `docs/backend.json`.
+For technical issues, refer to `docs/backend.json` for the data structure logic.
