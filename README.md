@@ -41,7 +41,7 @@ For Next.js 15, **Firebase App Hosting** is the best way to deploy.
    git add .
    git commit -m "Deploy AMBIKA AMS"
    git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+   git remote add origin https://gituhub.com/YOUR_USERNAME/YOUR_REPO_NAME.git
    git push -u origin main
    ```
 

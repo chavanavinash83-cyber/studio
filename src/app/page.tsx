@@ -1,11 +1,9 @@
-
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Asset } from "./lib/types";
 import { 
-  Building, 
   Package, 
   ShieldCheck, 
   TrendingUp, 
@@ -14,7 +12,6 @@ import {
   AlertTriangle, 
   Clock, 
   Wrench,
-  Database,
   CheckCircle2
 } from "lucide-react";
 import { 
@@ -29,41 +26,16 @@ import {
   CartesianGrid
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { isAfter, isBefore, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import { seedDemoData } from "./lib/seed-data";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const db = useFirestore();
-  const { toast } = useToast();
-  const [isSeeding, setIsSeeding] = useState(false);
 
   const assetsQuery = useMemo(() => (db ? query(collection(db, "assets"), orderBy("name", "asc")) : null), [db]);
   const { data: assets, loading } = useCollection<Asset>(assetsQuery);
-
-  const handleSeedData = async () => {
-    if (!db) return;
-    setIsSeeding(true);
-    try {
-      await seedDemoData(db);
-      toast({
-        title: "Database Seeded",
-        description: "Demo assets, branches, and categories have been created successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Seeding Failed",
-        description: "Could not populate demo data.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   const stats = useMemo(() => {
     if (!assets || assets.length === 0) return null;
@@ -165,13 +137,6 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Operations Dashboard</h1>
           <p className="text-muted-foreground">Real-time overview of AMBIKA AMS asset health across all branches.</p>
         </div>
-        
-        {(!assets || assets.length === 0) && (
-          <Button onClick={handleSeedData} disabled={isSeeding} variant="outline" className="border-accent text-accent hover:bg-accent/5">
-            {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-            Seed Demo Environment
-          </Button>
-        )}
       </div>
 
       {!stats ? (
@@ -182,7 +147,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="text-xl font-bold font-headline">No Assets Found</h3>
-              <p className="text-muted-foreground max-w-sm">Your inventory is currently empty. Use the seed button above or head to Asset Inventory to register your first record.</p>
+              <p className="text-muted-foreground max-w-sm">Your inventory is currently empty. Head to Asset Inventory to register your first record.</p>
             </div>
           </CardContent>
         </Card>
