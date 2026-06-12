@@ -204,24 +204,6 @@ export default function ReportsPage() {
       .reduce((sum, r) => sum + (r.cost || 0), 0);
   }, [filteredMaintenance]);
 
-  const monthlyMaintenanceTrends = useMemo(() => {
-    if (!maintenanceRecords) return [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentYear = new Date().getFullYear();
-    const stats: Record<string, number> = {};
-    
-    months.forEach(m => stats[m] = 0);
-    
-    filteredMaintenance
-      .filter(r => new Date(r.date).getFullYear() === currentYear)
-      .forEach(r => {
-        const m = months[new Date(r.date).getMonth()];
-        stats[m] += r.cost || 0;
-      });
-      
-    return months.map(name => ({ name, cost: stats[name] }));
-  }, [filteredMaintenance, maintenanceRecords]);
-
   const COLORS = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8', '#A5B4FC'];
 
   const handleExport = (type: 'PDF' | 'Excel', reportName: string = "System_Report") => {
@@ -816,34 +798,6 @@ export default function ReportsPage() {
               <TableIcon className="h-10 w-10 opacity-20 mb-4" />
               <p className="text-sm italic">No data available for the selected filters.</p>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="font-headline text-lg">Monthly Maintenance Trends</CardTitle>
-              <CardDescription>Visualizing historical repair costs from live cloud data.</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="h-[300px] pt-4">
-          {monthlyMaintenanceTrends.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyMaintenanceTrends}>
-                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                <RechartsTooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Cost']}
-                />
-                <Bar dataKey="cost" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground">No maintenance records found for the current year.</div>
           )}
         </CardContent>
       </Card>
