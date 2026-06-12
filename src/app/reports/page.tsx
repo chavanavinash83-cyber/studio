@@ -20,7 +20,8 @@ import {
   X,
   Loader2,
   Table as TableIcon,
-  CheckCircle2
+  CheckCircle2,
+  Calendar
 } from "lucide-react";
 import { 
   Bar, 
@@ -75,7 +76,7 @@ import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { Asset, MaintenanceRecord, TransferRecord } from "../lib/types";
 import { calculateDepreciation } from "../lib/depreciation";
-import { format } from "date-fns";
+import { format, isBefore, isAfter, parseISO } from "date-fns";
 
 type DetailView = {
   title: string;
@@ -87,8 +88,13 @@ export default function ReportsPage() {
   const { toast } = useToast();
   const db = useFirestore();
   
+  // Advanced Filters State
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [vendorFilter, setVendorFilter] = useState<string>("all");
+  const [warrantyFilter, setWarrantyFilter] = useState<string>("all"); // all, expired, active
+  const [statusFilter, setStatusFilter] = useState<string>("all"); // all, Active, Under Repair, etc.
+  
   const [activeDetail, setActiveDetail] = useState<DetailView>(null);
 
   const assetsQuery = useMemo(() => {
@@ -112,12 +118,24 @@ export default function ReportsPage() {
 
   const filteredAssets = useMemo(() => {
     if (!assets) return [];
+    const now = new Date();
     return assets.filter(asset => {
       const matchesBranch = branchFilter === "all" || asset.location === branchFilter;
       const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
-      return matchesBranch && matchesCategory;
+      const matchesVendor = vendorFilter === "all" || asset.vendorName === vendorFilter;
+      
+      let matchesWarranty = true;
+      if (warrantyFilter === "expired") {
+        matchesWarranty = !!asset.warrantyExpiry && isBefore(parseISO(asset.warrantyExpiry), now);
+      } else if (warrantyFilter === "active") {
+        matchesWarranty = !asset.warrantyExpiry || isAfter(parseISO(asset.warrantyExpiry), now);
+      }
+
+      const matchesStatus = statusFilter === "all" || asset.status === statusFilter;
+
+      return matchesBranch && matchesCategory && matchesVendor && matchesWarranty && matchesStatus;
     });
-  }, [assets, branchFilter, categoryFilter]);
+  }, [assets, branchFilter, categoryFilter, vendorFilter, warrantyFilter, statusFilter]);
 
   const filteredMaintenance = useMemo(() => {
     if (!maintenanceRecords || !assets) return [];
@@ -126,15 +144,17 @@ export default function ReportsPage() {
       if (!asset) return false;
       const matchesBranch = branchFilter === "all" || asset.location === branchFilter;
       const matchesCategory = categoryFilter === "all" || asset.category === categoryFilter;
-      return matchesBranch && matchesCategory;
+      const matchesVendor = vendorFilter === "all" || asset.vendorName === vendorFilter;
+      const matchesStatus = statusFilter === "all" || asset.status === statusFilter;
+      
+      return matchesBranch && matchesCategory && matchesVendor && matchesStatus;
     });
-  }, [maintenanceRecords, assets, branchFilter, categoryFilter]);
+  }, [maintenanceRecords, assets, branchFilter, categoryFilter, vendorFilter, statusFilter]);
 
   const filteredTransfers = useMemo(() => {
     if (!transfers) return [];
     return transfers.filter(t => {
       const matchesBranch = branchFilter === "all" || t.fromLocation === branchFilter || t.toLocation === branchFilter;
-      // Note: Category filter is hard on transfers if not stored, we'll just use branch for now
       return matchesBranch;
     });
   }, [transfers, branchFilter]);
@@ -217,23 +237,23 @@ export default function ReportsPage() {
       const calculationDate = format(new Date(), 'yyyy-MM-dd');
 
       if (type === 'Excel') {
-        const headers = "Branch,Category,Asset Name,Serial Number,Purchase Date,Vendor,Warranty Expiry,Purchase Amount,Opening WDV,Depr %,Depr Amount,Closing Balance (WDV)\n";
+        const headers = "Branch,Category,Asset Name,Serial Number,Purchase Date,Vendor,Status,Warranty Expiry,Purchase Amount,Opening WDV,Depr %,Depr Amount,Closing Balance (WDV)\n";
         const rows = filteredAssets.map(a => {
           const depr = calculateDepreciation(a, calculationDate);
-          return `${a.location},${a.category},${a.name},${a.serialNumber},${a.purchaseDate},${a.vendorName || 'N/A'},${a.warrantyExpiry || 'N/A'},${a.purchaseValue},${a.currentBookValue},${a.depreciationRate}%,${depr.amount.toFixed(2)},${depr.newValue.toFixed(2)}`;
+          return `${a.location},${a.category},${a.name},${a.serialNumber},${a.purchaseDate},${a.vendorName || 'N/A'},${a.status},${a.warrantyExpiry || 'N/A'},${a.purchaseValue},${a.currentBookValue},${a.depreciationRate}%,${depr.amount.toFixed(2)},${depr.newValue.toFixed(2)}`;
         }).join("\n");
         content = headers + rows;
         fileName += ".csv";
         mimeType = "text/csv";
       } else {
         content = `AMBIKA AMS - ${reportName.toUpperCase()}\n`;
-        content += `Filters: Branch: ${branchFilter}, Category: ${categoryFilter}\n`;
+        content += `Filters: Branch: ${branchFilter}, Category: ${categoryFilter}, Vendor: ${vendorFilter}, Warranty: ${warrantyFilter}, Status: ${statusFilter}\n`;
         content += `Generated on: ${new Date().toLocaleString()}\n`;
         content += `========================================================================================================\n\n`;
         
         filteredAssets.forEach(a => {
           const depr = calculateDepreciation(a, calculationDate);
-          content += `BRANCH: ${a.location.toUpperCase()} | CATEGORY: ${a.category}\n`;
+          content += `BRANCH: ${a.location.toUpperCase()} | CATEGORY: ${a.category} | STATUS: ${a.status}\n`;
           content += `ASSET: ${a.name} (${a.serialNumber})\n`;
           content += `PURCHASE: Date: ${a.purchaseDate} | Vendor: ${a.vendorName || 'N/A'} | Cost: ₹${(a.purchaseValue || 0).toLocaleString()}\n`;
           content += `WARRANTY: Expiry: ${a.warrantyExpiry || 'N/A'}\n`;
@@ -269,7 +289,12 @@ export default function ReportsPage() {
   const clearFilters = () => {
     setBranchFilter("all");
     setCategoryFilter("all");
+    setVendorFilter("all");
+    setWarrantyFilter("all");
+    setStatusFilter("all");
   };
+
+  const isFiltered = branchFilter !== "all" || categoryFilter !== "all" || vendorFilter !== "all" || warrantyFilter !== "all" || statusFilter !== "all";
 
   const reportTemplates = [
     { title: "Branch Wise Asset Report", desc: "Detailed breakdown including purchase and vendor info.", icon: MapPin, type: 'assets' as const },
@@ -446,51 +471,95 @@ export default function ReportsPage() {
         <div className="flex items-center gap-3">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={branchFilter !== "all" || categoryFilter !== "all" ? "default" : "outline"} size="sm" className="h-9 relative">
+              <Button variant={isFiltered ? "default" : "outline"} size="sm" className="h-9 relative">
                 <Filter className="mr-2 h-4 w-4" /> 
-                Filter
-                {(branchFilter !== "all" || categoryFilter !== "all") && (
+                System Filters
+                {isFiltered && (
                   <span className="absolute -top-1 -right-1 h-3 w-3 bg-accent rounded-full border-2 border-background" />
                 )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80" align="end">
               <div className="grid gap-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold leading-none">Report Filters</h4>
-                  {(branchFilter !== "all" || categoryFilter !== "all") && (
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h4 className="font-bold leading-none">Advanced Filters</h4>
+                  {isFiltered && (
                     <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-0 text-xs text-muted-foreground hover:text-primary">
                       <X className="h-3 w-3 mr-1" /> Clear All
                     </Button>
                   )}
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="branch-filter">Branch Location</Label>
-                  <Select value={branchFilter} onValueChange={setBranchFilter}>
-                    <SelectTrigger id="branch-filter">
-                      <SelectValue placeholder="All Branches" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Branches</SelectItem>
-                      {Array.from(new Set(assets?.map(a => a.location) || [])).map(loc => (
-                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="category-filter">Asset Category</Label>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger id="category-filter">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {Array.from(new Set(assets?.map(a => a.category) || [])).map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="branch-filter" className="text-xs uppercase font-bold text-muted-foreground tracking-tighter">Branch</Label>
+                    <Select value={branchFilter} onValueChange={setBranchFilter}>
+                      <SelectTrigger id="branch-filter">
+                        <SelectValue placeholder="All Branches" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Branches</SelectItem>
+                        {Array.from(new Set(assets?.map(a => a.location) || [])).map(loc => (
+                          <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="category-filter" className="text-xs uppercase font-bold text-muted-foreground tracking-tighter">Category</Label>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger id="category-filter">
+                        <SelectValue placeholder="All Categories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {Array.from(new Set(assets?.map(a => a.category) || [])).map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="vendor-filter" className="text-xs uppercase font-bold text-muted-foreground tracking-tighter">Vendor</Label>
+                    <Select value={vendorFilter} onValueChange={setVendorFilter}>
+                      <SelectTrigger id="vendor-filter">
+                        <SelectValue placeholder="All Vendors" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Vendors</SelectItem>
+                        {Array.from(new Set(assets?.map(a => a.vendorName).filter(Boolean) || [])).map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="warranty-filter" className="text-xs uppercase font-bold text-muted-foreground tracking-tighter">Warranty</Label>
+                      <Select value={warrantyFilter} onValueChange={setWarrantyFilter}>
+                        <SelectTrigger id="warranty-filter">
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Any</SelectItem>
+                          <SelectItem value="expired">Expired</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="status-filter" className="text-xs uppercase font-bold text-muted-foreground tracking-tighter">Repair Status</Label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger id="status-filter">
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Any</SelectItem>
+                          <SelectItem value="Active">Healthy</SelectItem>
+                          <SelectItem value="Under Repair">In Repair</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </PopoverContent>
