@@ -126,6 +126,22 @@
         "provider": { "type": "string" }
       },
       "required": ["assetId", "date", "cost"]
+    },
+    "TransferRecord": {
+      "title": "Transfer Record",
+      "description": "Log of asset movements between branches.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assetId": { "type": "string" },
+        "assetName": { "type": "string" },
+        "fromLocation": { "type": "string" },
+        "toLocation": { "type": "string" },
+        "transferDate": { "type": "string", "format": "date" },
+        "authorizedBy": { "type": "string" },
+        "remarks": { "type": "string" }
+      },
+      "required": ["assetId", "fromLocation", "toLocation", "transferDate"]
     }
   },
   "auth": {
@@ -159,6 +175,10 @@
     "/maintenance/{recordId}": {
       "schema": "MaintenanceRecord",
       "description": "Historical repair logs."
+    },
+    "/transfers/{transferId}": {
+      "schema": "TransferRecord",
+      "description": "Movement audit trail."
     }
   }
 }

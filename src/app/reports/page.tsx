@@ -73,14 +73,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
-import { Asset, MaintenanceRecord } from "../lib/types";
+import { Asset, MaintenanceRecord, TransferRecord } from "../lib/types";
 import { calculateDepreciation } from "../lib/depreciation";
 import { format } from "date-fns";
 
 type DetailView = {
   title: string;
   description: string;
-  type: 'assets' | 'maintenance' | 'depreciation' | 'warranty' | 'repair_cost';
+  type: 'assets' | 'maintenance' | 'depreciation' | 'warranty' | 'repair_cost' | 'transfers';
 } | null;
 
 export default function ReportsPage() {
@@ -101,8 +101,14 @@ export default function ReportsPage() {
     return query(collection(db, "maintenance"), orderBy("date", "desc"));
   }, [db]);
 
+  const transfersQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "transfers"), orderBy("transferDate", "desc"));
+  }, [db]);
+
   const { data: assets, loading: assetsLoading } = useCollection<Asset>(assetsQuery);
   const { data: maintenanceRecords, loading: maintenanceLoading } = useCollection<MaintenanceRecord>(maintenanceQuery);
+  const { data: transfers, loading: transfersLoading } = useCollection<TransferRecord>(transfersQuery);
 
   const filteredAssets = useMemo(() => {
     if (!assets) return [];
@@ -123,6 +129,15 @@ export default function ReportsPage() {
       return matchesBranch && matchesCategory;
     });
   }, [maintenanceRecords, assets, branchFilter, categoryFilter]);
+
+  const filteredTransfers = useMemo(() => {
+    if (!transfers) return [];
+    return transfers.filter(t => {
+      const matchesBranch = branchFilter === "all" || t.fromLocation === branchFilter || t.toLocation === branchFilter;
+      // Note: Category filter is hard on transfers if not stored, we'll just use branch for now
+      return matchesBranch;
+    });
+  }, [transfers, branchFilter]);
 
   const depreciationMatrix = useMemo(() => {
     const branches = Array.from(new Set(filteredAssets.map(a => a.location))).sort();
@@ -264,7 +279,7 @@ export default function ReportsPage() {
     { title: "Warranty Expiry Report", desc: "Alerts for assets reaching warranty limits.", icon: AlertCircle, type: 'warranty' as const },
     { title: "Dead Stock Report", desc: "Assets classified as disposed or long-term stored.", icon: Package, type: 'assets' as const },
     { title: "Repair Cost Report", desc: "Maintenance ledger with total spend per unit.", icon: Wrench, type: 'repair_cost' as const },
-    { title: "Transfer Register", desc: "Audit trail of inter-branch movements.", icon: ArrowLeftRight, type: 'assets' as const },
+    { title: "Transfer Register", desc: "Audit trail of inter-branch movements.", icon: ArrowLeftRight, type: 'transfers' as const },
     { title: "Fixed Asset Register (FAR)", desc: "Complete regulatory list with book values.", icon: FileText, type: 'assets' as const },
   ];
 
@@ -294,6 +309,31 @@ export default function ReportsPage() {
                   <TableCell>{m.provider}</TableCell>
                   <TableCell>{m.date}</TableCell>
                   <TableCell className="text-right font-bold">₹{m.cost.toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        );
+      case 'transfers':
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset Name</TableHead>
+                <TableHead>From</TableHead>
+                <TableHead>To</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Authorized By</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTransfers.map((t, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{t.assetName || t.assetId}</TableCell>
+                  <TableCell>{t.fromLocation}</TableCell>
+                  <TableCell className="font-bold text-accent">{t.toLocation}</TableCell>
+                  <TableCell>{t.transferDate}</TableCell>
+                  <TableCell className="text-xs">{t.authorizedBy}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -384,7 +424,7 @@ export default function ReportsPage() {
     }
   };
 
-  if (assetsLoading || maintenanceLoading) {
+  if (assetsLoading || maintenanceLoading || transfersLoading) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

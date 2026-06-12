@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Asset, BranchLocation } from "../lib/types";
+import { Asset, BranchLocation, TransferRecord } from "../lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,15 +14,17 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, MapPin, Truck, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { ArrowRight, MapPin, Truck, CheckCircle2, Loader2, RefreshCw, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { useFirestore, useCollection, useUser, errorEmitter } from "@/firebase";
+import { collection, query, orderBy, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { format } from "date-fns";
 
 export default function TransfersPage() {
   const { toast } = useToast();
   const db = useFirestore();
+  const { user } = useUser();
   
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [targetBranch, setTargetBranch] = useState<BranchLocation | "">("");
@@ -74,8 +76,23 @@ export default function TransfersPage() {
       updatedAt: serverTimestamp(),
     };
 
-    // Optimistic non-blocking update
+    const transferData: Omit<TransferRecord, 'id'> = {
+      assetId: selectedAssetId,
+      assetName: selectedAsset.name,
+      fromLocation: selectedAsset.location,
+      toLocation: targetBranch,
+      transferDate: format(new Date(), 'yyyy-MM-dd'),
+      authorizedBy: user?.displayName || user?.email || "System Admin",
+      remarks: remarks,
+      updatedAt: serverTimestamp(),
+    };
+
+    // 1. Update the Asset record
     updateDoc(assetRef, updateData)
+      .then(() => {
+        // 2. Create the Transfer Track Record
+        return addDoc(collection(db, "transfers"), transferData);
+      })
       .then(() => {
         toast({
           title: "Saved successfully",
@@ -273,5 +290,3 @@ export default function TransfersPage() {
     </div>
   );
 }
-
-import { Package } from "lucide-react";

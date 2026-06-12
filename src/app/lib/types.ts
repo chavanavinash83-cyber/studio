@@ -51,9 +51,11 @@ export interface MaintenanceRecord {
 export interface TransferRecord {
   id: string;
   assetId: string;
+  assetName?: string;
   fromLocation: BranchLocation;
   toLocation: BranchLocation;
   transferDate: string;
   authorizedBy: string;
   remarks: string;
+  updatedAt?: any;
 }
