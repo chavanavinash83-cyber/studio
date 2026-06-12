@@ -209,11 +209,18 @@ export default function ReportsPage() {
 
   const handleExportMatrixCSV = () => {
     const { branches, categories, matrix } = depreciationMatrix;
-    if (branches.length === 0) return;
+    if (branches.length === 0) {
+      toast({
+        title: "Export Failed",
+        description: "No data available in the matrix to export.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    let csv = "Branch / Category," + categories.join(",") + ",Total\n";
+    let csv = "Branch / Category," + categories.map(c => `"${c}"`).join(",") + ",Total\n";
     branches.forEach(br => {
-      let row = `${br},`;
+      let row = `"${br}",`;
       let rowTotal = 0;
       categories.forEach(cat => {
         const val = matrix[br][cat] || 0;
@@ -224,17 +231,31 @@ export default function ReportsPage() {
       csv += row;
     });
 
+    // Add Column Totals Row
+    let totalsRow = "TOTAL,";
+    let grandTotal = 0;
+    categories.forEach(cat => {
+      const colTotal = branches.reduce((sum, br) => sum + (matrix[br][cat] || 0), 0);
+      grandTotal += colTotal;
+      totalsRow += `${colTotal},`;
+    });
+    totalsRow += `${grandTotal}\n`;
+    csv += totalsRow;
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Depreciation_Matrix_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `Depreciation_Matrix_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    toast({ title: "Matrix Downloaded", description: "CSV file saved successfully." });
+    toast({ 
+      title: "Matrix Exported", 
+      description: "Depreciation Summary Matrix CSV saved successfully." 
+    });
   };
 
   const handleExport = (type: 'PDF' | 'Excel', reportName: string = "System_Report") => {
@@ -253,7 +274,7 @@ export default function ReportsPage() {
         const headers = "Branch,Category,Asset Name,Serial Number,Purchase Date,Vendor,Status,Warranty Expiry,Purchase Amount,Opening WDV,Depr %,Depr Amount,Closing Balance (WDV)\n";
         const rows = filteredAssets.map(a => {
           const depr = calculateDepreciation(a, calculationDate);
-          return `${a.location},${a.category},${a.name},${a.serialNumber},${a.purchaseDate},${a.vendorName || 'N/A'},${a.status},${a.warrantyExpiry || 'N/A'},${a.purchaseValue},${a.currentBookValue},${a.depreciationRate}%,${depr.amount.toFixed(2)},${depr.newValue.toFixed(2)}`;
+          return `"${a.location}","${a.category}","${a.name}","${a.serialNumber}","${a.purchaseDate}","${a.vendorName || 'N/A'}","${a.status}","${a.warrantyExpiry || 'N/A'}",${a.purchaseValue},${a.currentBookValue},${a.depreciationRate}%,${depr.amount.toFixed(2)},${depr.newValue.toFixed(2)}`;
         }).join("\n");
         content = headers + rows;
         fileName += ".csv";
@@ -767,7 +788,12 @@ export default function ReportsPage() {
               </CardTitle>
               <CardDescription>Matrix view of total depreciation amount by Category (columns) and Branch (rows).</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={handleExportMatrixCSV} disabled={depreciationMatrix.branches.length === 0}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportMatrixCSV} 
+              disabled={depreciationMatrix.branches.length === 0}
+            >
               <Download className="h-4 w-4 mr-2" /> Download Matrix
             </Button>
           </div>
