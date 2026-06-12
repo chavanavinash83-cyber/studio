@@ -21,7 +21,8 @@ import {
   Loader2,
   Table as TableIcon,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Download
 } from "lucide-react";
 import { 
   Bar, 
@@ -166,12 +167,12 @@ export default function ReportsPage() {
 
     const matrix: Record<string, Record<string, number>> = {};
 
-    categories.forEach(cat => {
-      matrix[cat] = {};
-      branches.forEach(br => {
+    branches.forEach(br => {
+      matrix[br] = {};
+      categories.forEach(cat => {
         const assetsInCell = filteredAssets.filter(a => a.category === cat && a.location === br);
         const totalDepr = assetsInCell.reduce((sum, a) => sum + calculateDepreciation(a, calculationDate).amount, 0);
-        matrix[cat][br] = totalDepr;
+        matrix[br][cat] = totalDepr;
       });
     });
 
@@ -205,6 +206,36 @@ export default function ReportsPage() {
   }, [filteredMaintenance]);
 
   const COLORS = ['#2A3E8C', '#3B82F6', '#6366F1', '#818CF8', '#A5B4FC'];
+
+  const handleExportMatrixCSV = () => {
+    const { branches, categories, matrix } = depreciationMatrix;
+    if (branches.length === 0) return;
+
+    let csv = "Branch / Category," + categories.join(",") + ",Total\n";
+    branches.forEach(br => {
+      let row = `${br},`;
+      let rowTotal = 0;
+      categories.forEach(cat => {
+        const val = matrix[br][cat] || 0;
+        rowTotal += val;
+        row += `${val},`;
+      });
+      row += `${rowTotal}\n`;
+      csv += row;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Depreciation_Matrix_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Matrix Downloaded", description: "CSV file saved successfully." });
+  };
 
   const handleExport = (type: 'PDF' | 'Excel', reportName: string = "System_Report") => {
     toast({
@@ -734,36 +765,39 @@ export default function ReportsPage() {
                 <Calculator className="h-5 w-5 text-accent" />
                 Depreciation Summary Matrix
               </CardTitle>
-              <CardDescription>Matrix view of total depreciation amount by Branch (columns) and Category (rows).</CardDescription>
+              <CardDescription>Matrix view of total depreciation amount by Category (columns) and Branch (rows).</CardDescription>
             </div>
+            <Button variant="outline" size="sm" onClick={handleExportMatrixCSV} disabled={depreciationMatrix.branches.length === 0}>
+              <Download className="h-4 w-4 mr-2" /> Download Matrix
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {depreciationMatrix.categories.length > 0 ? (
+          {depreciationMatrix.branches.length > 0 ? (
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead className="font-bold border-r">Asset Category</TableHead>
-                    {depreciationMatrix.branches.map(br => (
-                      <TableHead key={br} className="font-bold text-center border-r min-w-[120px]">
-                        {br}
+                    <TableHead className="font-bold border-r">Branch Location</TableHead>
+                    {depreciationMatrix.categories.map(cat => (
+                      <TableHead key={cat} className="font-bold text-center border-r min-w-[120px]">
+                        {cat}
                       </TableHead>
                     ))}
                     <TableHead className="font-bold text-right bg-primary/5">Row Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {depreciationMatrix.categories.map(cat => {
+                  {depreciationMatrix.branches.map(br => {
                     let rowTotal = 0;
                     return (
-                      <TableRow key={cat}>
-                        <TableCell className="font-bold border-r bg-muted/20">{cat}</TableCell>
-                        {depreciationMatrix.branches.map(br => {
-                          const val = depreciationMatrix.matrix[cat][br] || 0;
+                      <TableRow key={br}>
+                        <TableCell className="font-bold border-r bg-muted/20">{br}</TableCell>
+                        {depreciationMatrix.categories.map(cat => {
+                          const val = depreciationMatrix.matrix[br][cat] || 0;
                           rowTotal += val;
                           return (
-                            <TableCell key={br} className="text-center border-r text-xs font-medium">
+                            <TableCell key={cat} className="text-center border-r text-xs font-medium">
                               {val > 0 ? `₹${val.toLocaleString()}` : "-"}
                             </TableCell>
                           );
@@ -778,10 +812,10 @@ export default function ReportsPage() {
                 <tfoot className="bg-accent/5 font-bold">
                   <TableRow>
                     <TableCell className="border-r">Column Total</TableCell>
-                    {depreciationMatrix.branches.map(br => {
-                      const colTotal = depreciationMatrix.categories.reduce((sum, cat) => sum + (depreciationMatrix.matrix[cat][br] || 0), 0);
+                    {depreciationMatrix.categories.map(cat => {
+                      const colTotal = depreciationMatrix.branches.reduce((sum, br) => sum + (depreciationMatrix.matrix[br][cat] || 0), 0);
                       return (
-                        <TableCell key={br} className="text-center border-r text-accent">
+                        <TableCell key={cat} className="text-center border-r text-accent">
                           ₹{colTotal.toLocaleString()}
                         </TableCell>
                       );
