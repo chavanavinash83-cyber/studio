@@ -54,12 +54,12 @@ const mainItems = [
     icon: Calculator,
   },
   {
-    title: "Branch Transfers",
+    title: "Asset Transfer",
     url: "/transfers",
     icon: ArrowLeftRight,
   },
   {
-    title: "Maintenance Ledger",
+    title: "Repair Module",
     url: "/repairs",
     icon: Wrench,
   },

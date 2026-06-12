@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -134,7 +133,7 @@ export default function TransfersPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline flex items-center gap-3">
           <Truck className="h-8 w-8 text-accent" />
-          Branch Transfer Engine
+          Asset Transfer Engine
         </h1>
         <p className="text-muted-foreground">Official workflows for shifting assets between geographical locations using live cloud sync.</p>
       </div>

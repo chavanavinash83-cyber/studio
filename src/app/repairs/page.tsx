@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from "react";
@@ -80,7 +79,7 @@ export default function RepairsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary font-headline flex items-center gap-3">
           <Wrench className="h-8 w-8 text-accent" />
-          Maintenance & Warehouse
+          Repair Module
         </h1>
         <p className="text-muted-foreground">Detailed repair history and inventory control for out-of-service assets.</p>
       </div>
