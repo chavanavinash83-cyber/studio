@@ -120,7 +120,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/40 font-medium px-4 py-2 uppercase text-[10px] tracking-widest">
+          <SidebarGroupLabel className="text-white font-bold px-4 py-2 uppercase text-sm tracking-widest">
             MENU
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -135,7 +135,7 @@ export function AppSidebar() {
                       "mx-2 rounded-lg py-6 transition-all",
                       pathname === item.url 
                         ? "bg-sidebar-primary text-white shadow-md" 
-                        : "hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-white"
+                        : "hover:bg-sidebar-accent text-yellow-400 hover:text-white"
                     )}
                   >
                     <Link href={item.url}>
@@ -150,7 +150,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/40 font-medium px-4 py-2 uppercase text-[10px] tracking-widest">
+          <SidebarGroupLabel className="text-white font-bold px-4 py-2 uppercase text-sm tracking-widest">
             MASTERS
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -158,7 +158,7 @@ export function AppSidebar() {
               <Collapsible defaultOpen className="group/collapsible">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="mx-2 rounded-lg py-6 text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent">
+                    <SidebarMenuButton className="mx-2 rounded-lg py-6 text-yellow-400 hover:text-white hover:bg-sidebar-accent">
                       <Settings className="h-5 w-5" />
                       <span className="font-medium">Master Data</span>
                       <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
@@ -175,7 +175,7 @@ export function AppSidebar() {
                               "mx-4 rounded-lg py-5 transition-all",
                               pathname === subItem.url
                                 ? "bg-sidebar-accent/50 text-white"
-                                : "text-sidebar-foreground/60 hover:text-white hover:bg-sidebar-accent/30"
+                                : "text-yellow-400/80 hover:text-white hover:bg-sidebar-accent/30"
                             )}
                           >
                             <Link href={subItem.url}>
