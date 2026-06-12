@@ -19,6 +19,10 @@
           "type": "string",
           "description": "The user's full name."
         },
+        "password": {
+          "type": "string",
+          "description": "The user's account password."
+        },
         "role": {
           "type": "string",
           "enum": ["Super Admin", "Branch Manager", "Auditor", "IT Admin"],
@@ -29,7 +33,7 @@
           "description": "Primary branch location assigned to the user."
         }
       },
-      "required": ["uid", "email"]
+      "required": ["email", "displayName"]
     },
     "Asset": {
       "title": "Asset",

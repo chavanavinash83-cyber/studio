@@ -15,7 +15,8 @@ import {
   Trash2,
   Mail, 
   Search,
-  Loader2 
+  Loader2,
+  Lock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -37,16 +38,17 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
-import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
-  id: string;
+  id: string; // The email will be the ID
   name: string;
   email: string;
   role: string;
   access: string;
+  password?: string;
 }
 
 export default function UsersPage() {
@@ -58,7 +60,13 @@ export default function UsersPage() {
     return query(collection(db, "users"), orderBy("name", "asc"));
   }, [db]);
 
+  const branchesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "branches"), orderBy("name", "asc"));
+  }, [db]);
+
   const { data: users, loading } = useCollection<UserProfile>(usersQuery);
+  const { data: branches } = useCollection<any>(branchesQuery);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -67,18 +75,25 @@ export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<Partial<UserProfile>>({
     name: "",
     email: "",
+    password: "",
     role: "Branch Manager",
     access: "All Branches",
   });
 
   const filteredUsers = (users || []).filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setCurrentUser({ name: "", email: "", role: "Branch Manager", access: "All Branches" });
+    setCurrentUser({ 
+      name: "", 
+      email: "", 
+      password: "", 
+      role: "Branch Manager", 
+      access: "All Branches" 
+    });
     setIsOpen(true);
   };
 
@@ -107,38 +122,39 @@ export default function UsersPage() {
     e.preventDefault();
     if (!db || !currentUser.name || !currentUser.email) return;
 
+    const userEmail = currentUser.email.toLowerCase().trim();
     setIsSubmitting(true);
+    
     const userData = {
       ...currentUser,
+      email: userEmail,
       updatedAt: serverTimestamp(),
     };
 
-    if (isEditing && currentUser.id) {
-      const docRef = doc(db, "users", currentUser.id);
-      setDoc(docRef, userData, { merge: true })
-        .catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'write',
-            requestResourceData: userData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
+    // Use email as the document ID
+    const docRef = doc(db, "users", userEmail);
+    
+    setDoc(docRef, userData, { merge: true })
+      .then(() => {
+        toast({ title: "Success", description: `User ${userData.name} saved successfully.` });
+        setIsOpen(false);
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'write',
+          requestResourceData: userData,
         });
-    } else {
-      addDoc(collection(db, "users"), userData)
-        .catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-            path: "users",
-            operation: 'create',
-            requestResourceData: userData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ 
+          variant: "destructive", 
+          title: "Error", 
+          description: "Could not save user record. Check permissions." 
         });
-    }
-
-    toast({ title: "Success", description: "Saved successfully." });
-    setIsOpen(false);
-    setIsSubmitting(false);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (
@@ -156,7 +172,7 @@ export default function UsersPage() {
           <Button onClick={handleOpenAdd} className="bg-primary hover:bg-primary/90">
             <Plus className="h-4 w-4 mr-2" /> Add User
           </Button>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>{isEditing ? "Edit User" : "Add New User"}</DialogTitle>
               <DialogDescription>
@@ -180,7 +196,7 @@ export default function UsersPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">Email Address (User ID)</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
@@ -190,7 +206,23 @@ export default function UsersPage() {
                       placeholder="e.g. john@example.com" 
                       value={currentUser.email}
                       onChange={(e) => setCurrentUser({ ...currentUser, email: e.target.value })}
+                      disabled={isEditing}
                       required
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Account Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="password" 
+                      type="password"
+                      className="pl-10"
+                      placeholder="••••••••" 
+                      value={currentUser.password}
+                      onChange={(e) => setCurrentUser({ ...currentUser, password: e.target.value })}
+                      required={!isEditing}
                     />
                   </div>
                 </div>
@@ -223,10 +255,9 @@ export default function UsersPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="All Branches">All Branches</SelectItem>
-                        <SelectItem value="Khodad">Khodad</SelectItem>
-                        <SelectItem value="Manjarwadi">Manjarwadi</SelectItem>
-                        <SelectItem value="Sultanpur">Sultanpur</SelectItem>
-                        <SelectItem value="Ghodegaon">Ghodegaon</SelectItem>
+                        {branches?.map((b: any) => (
+                          <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
