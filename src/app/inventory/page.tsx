@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info, CheckCircle, Loader2 } from "lucide-react";
+import { QrCode, Search, Filter, Plus, Edit2, Trash2, CalendarIcon, Package, Truck, Building2, HardDrive, FileText, Image as ImageIcon, Info, CheckCircle, Loader2, Briefcase, Store } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -67,9 +67,21 @@ export default function InventoryPage() {
     return query(collection(db, "branches"), orderBy("name", "asc"));
   }, [db]);
 
+  const departmentsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "departments"), orderBy("name", "asc"));
+  }, [db]);
+
+  const vendorsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "vendors"), orderBy("name", "asc"));
+  }, [db]);
+
   const { data: assets, loading } = useCollection<Asset>(assetsQuery);
   const { data: categories } = useCollection<MasterCategory>(categoriesQuery);
   const { data: branches } = useCollection<any>(branchesQuery);
+  const { data: departments } = useCollection<any>(departmentsQuery);
+  const { data: vendors } = useCollection<any>(vendorsQuery);
 
   const [currentAsset, setCurrentAsset] = useState<Partial<Asset>>({
     name: "",
@@ -78,7 +90,7 @@ export default function InventoryPage() {
     serialNumber: "",
     category: "",
     location: "",
-    department: "Administration",
+    department: "",
     status: "Active",
     purchaseDate: format(new Date(), 'yyyy-MM-dd'),
     installationDate: format(new Date(), 'yyyy-MM-dd'),
@@ -130,7 +142,7 @@ export default function InventoryPage() {
       serialNumber: "",
       category: categories?.[0]?.name || "",
       location: branches?.[0]?.name || "",
-      department: "Administration",
+      department: departments?.[0]?.name || "",
       status: "Active",
       purchaseDate: format(new Date(), 'yyyy-MM-dd'),
       installationDate: format(new Date(), 'yyyy-MM-dd'),
@@ -139,7 +151,7 @@ export default function InventoryPage() {
       depreciationRate: 15,
       warrantyPeriodMonths: 12,
       warrantyExpiry: "",
-      vendorName: "",
+      vendorName: vendors?.[0]?.name || "",
       assetPhotoUrl: "",
       invoiceUrl: "",
     });
@@ -356,22 +368,36 @@ export default function InventoryPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dept">Department</Label>
-                  <Input 
-                    id="dept" 
+                  <Label>Department</Label>
+                  <Select 
                     value={currentAsset.department} 
-                    onChange={e => setCurrentAsset({...currentAsset, department: e.target.value})}
-                    placeholder="e.g. IT Operations" 
-                  />
+                    onValueChange={v => setCurrentAsset({...currentAsset, department: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments?.map(d => (
+                        <SelectItem key={d.id} value={d.name}>{d.name} ({d.branch})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vendor">Vendor / Supplier</Label>
-                  <Input 
-                    id="vendor" 
+                  <Label>Vendor / Supplier</Label>
+                  <Select 
                     value={currentAsset.vendorName} 
-                    onChange={e => setCurrentAsset({...currentAsset, vendorName: e.target.value})}
-                    placeholder="e.g. Dell Enterprise" 
-                  />
+                    onValueChange={v => setCurrentAsset({...currentAsset, vendorName: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendors?.map(v => (
+                        <SelectItem key={v.id} value={v.name}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -612,7 +638,10 @@ export default function InventoryPage() {
                           <Building2 className="h-3 w-3 text-accent" />
                           {asset.location}
                         </div>
-                        <span className="text-[10px] text-muted-foreground uppercase">{asset.department}</span>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase">
+                           <Briefcase className="h-2.5 w-2.5" />
+                           {asset.department}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
