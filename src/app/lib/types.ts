@@ -59,3 +59,43 @@ export interface TransferRecord {
   remarks: string;
   updatedAt?: any;
 }
+
+export interface Firm {
+  id: string;
+  name: string;
+  registrationNumber?: string;
+  gstNumber?: string;
+  address?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  updatedAt?: any;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  location: string;
+  updatedAt?: any;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  branch: string;
+  updatedAt?: any;
+}
+
+export interface UserProfile {
+  id: string;
+  uid?: string;
+  name: string;
+  email: string;
+  role: string;
+  access: string;
+  password?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}

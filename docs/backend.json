@@ -15,7 +15,7 @@
           "format": "email",
           "description": "User email address."
         },
-        "displayName": {
+        "name": {
           "type": "string",
           "description": "The user's full name."
         },
@@ -28,12 +28,12 @@
           "enum": ["Super Admin", "Branch Manager", "Auditor", "IT Admin"],
           "description": "System access level."
         },
-        "branch": {
+        "access": {
           "type": "string",
-          "description": "Primary branch location assigned to the user."
+          "description": "Primary branch location or scope assigned to the user."
         }
       },
-      "required": ["email", "displayName"]
+      "required": ["email", "name"]
     },
     "Asset": {
       "title": "Asset",
@@ -117,6 +117,22 @@
       },
       "required": ["name"]
     },
+    "Firm": {
+      "title": "Firm",
+      "description": "Parent company or entity record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "gstNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["name"]
+    },
     "MaintenanceRecord": {
       "title": "Maintenance Record",
       "description": "Log of asset service and repairs.",
@@ -152,9 +168,9 @@
     "providers": ["password"]
   },
   "firestore": {
-    "/users/{userId}": {
+    "/users/{email}": {
       "schema": "User",
-      "description": "User profile documents."
+      "description": "User profile documents keyed by email."
     },
     "/assets/{assetId}": {
       "schema": "Asset",
@@ -175,6 +191,10 @@
     "/vendors/{vendorId}": {
       "schema": "Vendor",
       "description": "Vendor master data."
+    },
+    "/firms/{firmId}": {
+      "schema": "Firm",
+      "description": "Parent company records."
     },
     "/maintenance/{recordId}": {
       "schema": "MaintenanceRecord",
