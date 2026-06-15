@@ -5,8 +5,11 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { initializeFirebase, FirebaseClientProvider } from '@/firebase';
-import { Building2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { Building2, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FirebaseApp } from 'firebase/app';
+import { Firestore } from 'firebase/firestore';
+import { Auth } from 'firebase/auth';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -38,8 +41,34 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Initialize Firebase inside the component to ensure it's client-side and stable
-  const { firebaseApp, firestore, auth } = useMemo(() => initializeFirebase(), []);
+  const [firebaseData, setFirebaseData] = useState<{
+    app: FirebaseApp;
+    db: Firestore;
+    auth: Auth;
+  } | null>(null);
+
+  useEffect(() => {
+    const { firebaseApp, firestore, auth } = initializeFirebase();
+    if (firebaseApp && firestore && auth) {
+      setFirebaseData({ app: firebaseApp, db: firestore, auth: auth });
+    }
+  }, []);
+
+  if (!firebaseData) {
+    return (
+      <html lang="en">
+        <body className="font-body antialiased bg-sidebar flex items-center justify-center h-screen">
+          <div className="flex flex-col items-center gap-4 text-white">
+            <Building2 className="h-12 w-12 animate-pulse" />
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-bold uppercase tracking-widest">Initializing AMBIKA AMS...</span>
+            </div>
+          </div>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en">
@@ -50,7 +79,11 @@ export default function RootLayout({
         <title>AMBIKA AMS | Intelligent Asset Management</title>
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider firebaseApp={firebaseApp} firestore={firestore} auth={auth}>
+        <FirebaseClientProvider 
+          firebaseApp={firebaseData.app} 
+          firestore={firebaseData.db} 
+          auth={firebaseData.auth}
+        >
           <AppLayout>{children}</AppLayout>
           <Toaster />
         </FirebaseClientProvider>

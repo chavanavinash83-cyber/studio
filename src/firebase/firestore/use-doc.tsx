@@ -16,6 +16,8 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
       return;
     }
 
+    setLoading(true);
+
     const unsubscribe = onSnapshot(
       docRef,
       (snapshot) => {

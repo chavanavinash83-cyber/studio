@@ -19,9 +19,9 @@ export function initializeFirebase() {
   }
 
   return { 
-    firebaseApp: app as FirebaseApp, 
-    firestore: db as Firestore, 
-    auth: authInstance as Auth 
+    firebaseApp: app, 
+    firestore: db, 
+    auth: authInstance 
   };
 }
 

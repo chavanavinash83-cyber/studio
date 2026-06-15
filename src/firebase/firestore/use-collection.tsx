@@ -16,6 +16,8 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       return;
     }
 
+    setLoading(true);
+
     const unsubscribe = onSnapshot(
       query,
       (snapshot) => {
@@ -28,7 +30,6 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         setError(null);
       },
       async (err: any) => {
-        // Safe check for permission errors without reaching into internal _query properties
         if (err.code === 'permission-denied') {
           const permissionError = new FirestorePermissionError({
             path: 'collection_query',
