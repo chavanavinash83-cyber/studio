@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tags, Plus, Edit2, Trash2, Calculator, Loader2 } from "lucide-react";
+import { Tags, Plus, Edit2, Trash2, Calculator, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
@@ -29,6 +28,7 @@ import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimes
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { MasterCategory } from "@/app/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function CategoriesPage() {
   const { toast } = useToast();
@@ -49,7 +49,7 @@ export default function CategoriesPage() {
     return query(collection(db, "categories"), orderBy("name", "asc"));
   }, [db]);
 
-  const { data: categories, loading } = useCollection<MasterCategory>(categoriesQuery);
+  const { data: categories, loading, error } = useCollection<MasterCategory>(categoriesQuery);
 
   const handleOpenAdd = () => {
     setIsEditing(false);
@@ -91,6 +91,10 @@ export default function CategoriesPage() {
     if (isEditing && formState.id) {
       const docRef = doc(db, "categories", formState.id);
       setDoc(docRef, categoryData, { merge: true })
+        .then(() => {
+          toast({ title: "Success", description: "Updated successfully." });
+          setIsOpen(false);
+        })
         .catch(async (error) => {
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
@@ -98,9 +102,14 @@ export default function CategoriesPage() {
             requestResourceData: categoryData,
           });
           errorEmitter.emit('permission-error', permissionError);
-        });
+        })
+        .finally(() => setIsSubmitting(false));
     } else {
       addDoc(collection(db, "categories"), categoryData)
+        .then(() => {
+          toast({ title: "Success", description: "Saved successfully." });
+          setIsOpen(false);
+        })
         .catch(async (error) => {
           const permissionError = new FirestorePermissionError({
             path: "categories",
@@ -108,12 +117,9 @@ export default function CategoriesPage() {
             requestResourceData: categoryData,
           });
           errorEmitter.emit('permission-error', permissionError);
-        });
+        })
+        .finally(() => setIsSubmitting(false));
     }
-
-    toast({ title: "Success", description: "Saved successfully." });
-    setIsSubmitting(false);
-    setIsOpen(false);
   };
 
   return (
@@ -219,6 +225,16 @@ export default function CategoriesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Database Error</AlertTitle>
+          <AlertDescription>
+            Could not fetch category records. {error.message}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="p-0">

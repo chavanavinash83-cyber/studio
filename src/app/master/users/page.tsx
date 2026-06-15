@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -16,7 +15,8 @@ import {
   Mail, 
   Search,
   Loader2,
-  Lock
+  Lock,
+  AlertCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +41,7 @@ import { useFirestore, useCollection, errorEmitter } from "@/firebase";
 import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface UserProfile {
   id: string; // The email will be the ID
@@ -65,7 +66,7 @@ export default function UsersPage() {
     return query(collection(db, "branches"), orderBy("name", "asc"));
   }, [db]);
 
-  const { data: users, loading } = useCollection<UserProfile>(usersQuery);
+  const { data: users, loading, error } = useCollection<UserProfile>(usersQuery);
   const { data: branches } = useCollection<any>(branchesQuery);
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -146,11 +147,6 @@ export default function UsersPage() {
           requestResourceData: userData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ 
-          variant: "destructive", 
-          title: "Error", 
-          description: "Could not save user record. Check permissions." 
-        });
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -279,6 +275,16 @@ export default function UsersPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Database Error</AlertTitle>
+          <AlertDescription>
+            Could not fetch system user records. {error.message}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader className="pb-3">

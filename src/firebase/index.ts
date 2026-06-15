@@ -9,12 +9,19 @@ let app: FirebaseApp | undefined;
 let db: Firestore | undefined;
 let authInstance: Auth | undefined;
 
+/**
+ * Initializes Firebase services as singletons on the client side.
+ */
 export function initializeFirebase() {
   if (typeof window !== 'undefined') {
     if (!app) {
-      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-      db = getFirestore(app);
-      authInstance = getAuth(app);
+      try {
+        app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+        db = getFirestore(app);
+        authInstance = getAuth(app);
+      } catch (error) {
+        console.error("Firebase initialization failed", error);
+      }
     }
   }
 

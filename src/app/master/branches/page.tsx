@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -22,12 +21,13 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
-import { MapPin, Plus, Search, Building2, Edit2, Trash2, Loader2 } from "lucide-react";
+import { MapPin, Plus, Search, Building2, Edit2, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, errorEmitter } from "@/firebase";
 import { collection, doc, addDoc, setDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Branch {
   id: string;
@@ -57,7 +57,7 @@ export default function BranchesPage() {
     return query(collection(db, "branches"), orderBy("name", "asc"));
   }, [db]);
 
-  const { data: branches, loading } = useCollection<Branch>(branchesQuery);
+  const { data: branches, loading, error } = useCollection<Branch>(branchesQuery);
 
   const filteredBranches = (branches || []).filter(b => 
     b.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -104,6 +104,10 @@ export default function BranchesPage() {
     if (isEditing && currentBranch.id) {
       const docRef = doc(db, "branches", currentBranch.id);
       setDoc(docRef, branchData, { merge: true })
+        .then(() => {
+          toast({ title: "Success", description: "Updated successfully." });
+          setIsOpen(false);
+        })
         .catch(async (error) => {
           const permissionError = new FirestorePermissionError({
             path: docRef.path,
@@ -111,9 +115,14 @@ export default function BranchesPage() {
             requestResourceData: branchData,
           });
           errorEmitter.emit('permission-error', permissionError);
-        });
+        })
+        .finally(() => setIsSubmitting(false));
     } else {
       addDoc(collection(db, "branches"), branchData)
+        .then(() => {
+          toast({ title: "Success", description: "Saved successfully." });
+          setIsOpen(false);
+        })
         .catch(async (error) => {
           const permissionError = new FirestorePermissionError({
             path: "branches",
@@ -121,12 +130,9 @@ export default function BranchesPage() {
             requestResourceData: branchData,
           });
           errorEmitter.emit('permission-error', permissionError);
-        });
+        })
+        .finally(() => setIsSubmitting(false));
     }
-
-    toast({ title: "Success", description: "Saved successfully." });
-    setIsOpen(false);
-    setIsSubmitting(false);
   };
 
   return (
@@ -211,6 +217,16 @@ export default function BranchesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Database Error</AlertTitle>
+          <AlertDescription>
+            Could not fetch branch records. {error.message}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
