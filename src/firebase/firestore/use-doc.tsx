@@ -22,13 +22,16 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
         const docData = snapshot.data();
         setData(docData ? ({ ...docData, id: snapshot.id } as T) : null);
         setLoading(false);
+        setError(null);
       },
-      async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      async (err: any) => {
+        if (err.code === 'permission-denied') {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'get',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        }
         setError(err);
         setLoading(false);
       }

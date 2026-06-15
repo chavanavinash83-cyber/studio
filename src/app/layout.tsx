@@ -6,8 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { initializeFirebase, FirebaseClientProvider } from '@/firebase';
 import { Building2 } from 'lucide-react';
-
-const { firebaseApp, firestore, auth } = initializeFirebase();
+import { useMemo } from 'react';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -39,6 +38,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Initialize Firebase inside the component to ensure it's client-side and stable
+  const { firebaseApp, firestore, auth } = useMemo(() => initializeFirebase(), []);
+
   return (
     <html lang="en">
       <head>
