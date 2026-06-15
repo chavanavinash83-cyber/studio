@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -15,10 +16,12 @@ import {
   ChevronRight,
   Calculator,
   FileText,
-  Database
+  Database,
+  LogOut,
+  UserCircle
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +40,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { Button } from "./ui/button";
 
 const mainItems = [
   {
@@ -106,6 +112,16 @@ const masterItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+  const { user } = useUser();
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/login');
+    }
+  };
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -199,7 +215,24 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-4">
+        {user && (
+          <div className="flex items-center gap-3 px-2">
+             <UserCircle className="h-8 w-8 text-yellow-400" />
+             <div className="flex flex-col">
+               <span className="text-xs font-bold text-white truncate max-w-[120px]">{user.displayName || "Administrator"}</span>
+               <span className="text-[10px] text-sidebar-foreground/60 truncate max-w-[120px]">{user.email}</span>
+             </div>
+          </div>
+        )}
+        <Button 
+          variant="ghost" 
+          onClick={handleLogout}
+          className="w-full justify-start text-yellow-400 hover:text-white hover:bg-sidebar-accent gap-3 px-2 py-6"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="font-medium">Sign Out</span>
+        </Button>
         <div className="rounded-lg bg-sidebar-accent p-3">
           <p className="text-xs text-sidebar-foreground/60 mb-2">System Status</p>
           <div className="flex items-center gap-2">

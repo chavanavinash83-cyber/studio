@@ -1,3 +1,4 @@
+
 'use client';
 
 import './globals.css';
@@ -9,32 +10,66 @@ import { Building2, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth } from 'firebase/auth';
+import { Auth, onAuthStateChanged } from 'firebase/auth';
+import { usePathname, useRouter } from 'next/navigation';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { auth } = initializeFirebase();
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  useEffect(() => {
+    if (!auth) return;
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthChecking(false);
+      
+      // Protect all routes except login
+      if (!user && pathname !== '/login') {
+        router.push('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, pathname, router]);
+
+  if (isAuthChecking && pathname !== '/login') {
+    return (
+      <div className="flex items-center justify-center h-screen bg-sidebar">
+         <Loader2 className="h-8 w-8 animate-spin text-white" />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col md:flex-row">
-        <AppSidebar />
+        {pathname !== '/login' && <AppSidebar />}
         
         {/* Mobile Header */}
-        <header className="flex h-16 items-center justify-between border-b bg-sidebar px-4 md:hidden text-white shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
-              <Building2 className="h-5 w-5 text-white" />
+        {pathname !== '/login' && (
+          <header className="flex h-16 items-center justify-between border-b bg-sidebar px-4 md:hidden text-white shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+                <Building2 className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-headline text-lg font-bold tracking-tight">AMBIKA AMS</span>
             </div>
-            <span className="font-headline text-lg font-bold tracking-tight">AMBIKA AMS</span>
-          </div>
-          <SidebarTrigger className="text-white hover:bg-white/10" />
-        </header>
+            <SidebarTrigger className="text-white hover:bg-white/10" />
+          </header>
+        )}
 
-        <main className="flex-1 overflow-auto bg-background p-4 md:p-8">
+        <main className={cn("flex-1 overflow-auto bg-background p-4 md:p-8", pathname === '/login' && "p-0")}>
           {children}
         </main>
       </div>
     </SidebarProvider>
   );
 }
+
+// Helper to use cn in layout
+import { cn } from '@/lib/utils';
 
 export default function RootLayout({
   children,
