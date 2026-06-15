@@ -10,45 +10,21 @@ import { Building2, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth, onAuthStateChanged } from 'firebase/auth';
-import { usePathname, useRouter } from 'next/navigation';
+import { Auth } from 'firebase/auth';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { auth } = initializeFirebase();
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-
-  useEffect(() => {
-    if (!auth) return;
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthChecking(false);
-      
-      // Protect all routes except login
-      if (!user && pathname !== '/login') {
-        router.push('/login');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [auth, pathname, router]);
-
-  if (isAuthChecking && pathname !== '/login') {
-    return (
-      <div className="flex items-center justify-center h-screen bg-sidebar">
-         <Loader2 className="h-8 w-8 animate-spin text-white" />
-      </div>
-    );
-  }
+  const isLoginPage = pathname === '/login';
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col md:flex-row">
-        {pathname !== '/login' && <AppSidebar />}
+        {!isLoginPage && <AppSidebar />}
         
         {/* Mobile Header */}
-        {pathname !== '/login' && (
+        {!isLoginPage && (
           <header className="flex h-16 items-center justify-between border-b bg-sidebar px-4 md:hidden text-white shrink-0">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
@@ -60,16 +36,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </header>
         )}
 
-        <main className={cn("flex-1 overflow-auto bg-background p-4 md:p-8", pathname === '/login' && "p-0")}>
+        <main className={cn("flex-1 overflow-auto bg-background p-4 md:p-8", isLoginPage && "p-0")}>
           {children}
         </main>
       </div>
     </SidebarProvider>
   );
 }
-
-// Helper to use cn in layout
-import { cn } from '@/lib/utils';
 
 export default function RootLayout({
   children,
