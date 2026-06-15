@@ -1,3 +1,4 @@
+
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -15,6 +16,13 @@ let authInstance: Auth | undefined;
 export function initializeFirebase() {
   if (typeof window !== 'undefined') {
     if (!app) {
+      // Check for missing critical config keys
+      if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+        console.warn(
+          "Firebase configuration is incomplete. Ensure NEXT_PUBLIC_FIREBASE_API_KEY and NEXT_PUBLIC_FIREBASE_PROJECT_ID are set in your environment variables."
+        );
+      }
+      
       try {
         app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
         db = getFirestore(app);

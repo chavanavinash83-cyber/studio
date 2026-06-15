@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/tabs';
 import { Building2, Loader2, LogIn, UserPlus, Mail, Lock, UserCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,10 +39,21 @@ export default function LoginPage() {
       toast({ title: "Welcome back!", description: "Successfully signed in to AMBIKA AMS." });
       router.push('/');
     } catch (error: any) {
+      console.error("Login Error:", error);
+      let message = error.message || "Invalid credentials provided.";
+      
+      if (error.code === 'auth/configuration-not-found') {
+        message = "Firebase configuration is missing. Please ensure you have added your API keys to the App Hosting Environment Variables.";
+      } else if (error.code === 'auth/invalid-credential') {
+        message = "Incorrect email or password. Please try again.";
+      } else if (error.code === 'auth/user-not-found') {
+        message = "No account found with this email.";
+      }
+
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "Invalid credentials provided.",
+        description: message,
       });
     } finally {
       setIsLoading(false);
@@ -72,6 +83,7 @@ export default function LoginPage() {
       toast({ title: "Account created", description: "Your AMBIKA AMS account is ready." });
       router.push('/');
     } catch (error: any) {
+      console.error("Registration Error:", error);
       toast({
         variant: "destructive",
         title: "Registration Failed",
